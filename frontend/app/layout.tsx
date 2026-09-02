@@ -91,12 +91,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
                 <HeaderNav />
               </div>
-              <div className="rule-double flex items-center justify-between gap-3 py-2">
-                <div className="flex items-center gap-3">
+              <div className="rule-double pb-2 pt-2">
+                <div className="flex items-center justify-between gap-3">
                   <CountrySwitcher />
-                  <SourcesLink />
+                  <time className="kicker hidden whitespace-nowrap sm:inline">{today()}</time>
                 </div>
-                <time className="kicker hidden whitespace-nowrap sm:inline">{today()}</time>
+                <SourcesLink />
               </div>
             </div>
           </header>
