@@ -10,7 +10,7 @@ function readCookie(): string | undefined {
   return m ? decodeURIComponent(m[1]) : undefined;
 }
 
-const SHOWN = 7;
+const SHOWN = 5;
 
 export function SourcesLink() {
   const [outlets, setOutlets] = useState<Outlet[]>([]);
@@ -27,26 +27,17 @@ export function SourcesLink() {
   const extra = outlets.length - shown.length;
 
   return (
-    <p className="pt-1.5 text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
-      <span className="kicker mr-1.5">Reading</span>
-      {shown.map((o, i) => (
-        <span key={o.slug}>
-          <a
-            href={o.homepage}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="transition-colors hover:text-[var(--fg)]"
-          >
-            {o.name}
-          </a>
-          {i < shown.length - 1 && <span className="opacity-40"> · </span>}
-        </span>
-      ))}
+    <p
+      className="mt-1 text-[0.7rem] leading-relaxed"
+      style={{ color: "var(--muted)" }}
+      title={outlets.map((o) => o.name).join(", ")}
+    >
+      {shown.map((o) => o.name).join("  ·  ")}
       {extra > 0 && (
         <>
-          <span className="opacity-40"> · </span>
-          <Link href="/sources" className="transition-colors hover:text-[var(--fg)]">
-            +{extra} more
+          {"  ·  "}
+          <Link href="/sources" className="underline-offset-2 hover:underline">
+            {extra} more
           </Link>
         </>
       )}

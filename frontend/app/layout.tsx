@@ -6,6 +6,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { CountrySwitcher } from "@/components/CountrySwitcher";
 import { HeaderNav } from "@/components/HeaderNav";
 import { SourcesLink } from "@/components/SourcesLink";
+import { Wordmark } from "@/components/Wordmark";
 
 // Body / UI face. A humanist grotesque with real editorial character and
 // built-in tabular figures — Inter reads as a default; this doesn't.
@@ -77,13 +78,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <div>
                   <Link
                     href="/"
-                    className="font-display block text-[2.5rem] font-medium leading-[0.85] tracking-[-0.035em]"
+                    className="block text-[2.6rem] leading-[0.85]"
                     aria-label="TrueNews home"
                   >
-                    True<span style={{ color: "var(--accent)" }}>News</span>
+                    <Wordmark />
                   </Link>
                   <p
-                    className="mt-2 hidden text-[0.78rem] italic sm:block"
+                    className="mt-2.5 hidden text-[0.8rem] italic sm:block"
                     style={{ color: "var(--muted)", fontFamily: "var(--font-display), Georgia, serif" }}
                   >
                     How the same story reads from one outlet to the next.
