@@ -24,6 +24,21 @@ from app.schemas import (
 router = APIRouter(prefix="/api")
 
 
+@router.get("/_diag")
+def _diag(session: Session = Depends(get_session)) -> dict:
+    """Temporary: report whether the DB is reachable and why not. Remove once the
+    deploy is confirmed healthy."""
+    from app.config import get_settings as _gs
+
+    url = _gs().database_url
+    masked = url.split("@")[-1] if "@" in url else url
+    try:
+        n = session.exec(select(func.count()).select_from(Cluster)).one()
+        return {"db": "ok", "clusters": n, "host": masked}
+    except Exception as exc:  # noqa: BLE001
+        return {"db": "error", "host": masked, "type": type(exc).__name__, "detail": str(exc)[:500]}
+
+
 def _country(value: str | None) -> str:
     s = get_settings()
     return value if value in s.country_list else s.default_country
