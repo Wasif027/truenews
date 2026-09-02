@@ -22,7 +22,7 @@ See [SPEC.md](SPEC.md) for the full v1 scope and the reasoning behind it.
 
 | Layer | Choice |
 |---|---|
-| Ingestion | Python, every 20 min via GitHub Actions (`.github/workflows/ingest.yml`) |
+| Ingestion | Python, hourly via GitHub Actions (`.github/workflows/ingest.yml`) |
 | Embeddings / clustering | `fastembed` (BAAI/bge-small-en-v1.5, ONNX) + cosine-threshold connected components |
 | Categorisation | zero-shot over the same embeddings; up to two categories per story |
 | Summary + coverage comparison | up to 3 OpenAI-compatible LLM providers (`LLM_1_*`..`LLM_3_*`), tried in order and rolled over on any rate limit — chains free tiers (Gemini → Groq) so a busy day never drops the feature. Offline heuristic fallback with no key. |
@@ -50,11 +50,11 @@ npm run dev          # API on :8000, web on :3000, one terminal, Ctrl+C stops bo
 npm run ingest       # refresh the news now (fetch -> cluster -> summarise)
 ```
 
-With `INGEST_INTERVAL_MIN=10` in `backend/.env` (the default local setup), the
-API also re-ingests every 10 minutes on its own, so new stories and the
-"new stories" pill appear while you watch. The deployed version should set this
-to `0` and rely on the GitHub Actions cron (`.github/workflows/ingest.yml`,
-every 10 min) so ingestion doesn't run twice against the same database.
+Set `INGEST_INTERVAL_MIN` in `backend/.env` to a positive number (e.g. `20`) and
+the API re-ingests on that interval on its own, so new stories and the
+"new stories" pill appear while you watch. The deployed version keeps this at `0`
+and relies on the GitHub Actions cron (`.github/workflows/ingest.yml`, hourly) so
+ingestion doesn't run twice against the same database.
 
 Close any old `uvicorn` / `next dev` windows first so nothing double-binds a port.
 (`npm run dev:api` / `npm run dev:web` run just one side.)
