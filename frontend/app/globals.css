@@ -1,0 +1,225 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #fbfaf7;
+  --fg: #201e1a;
+  --fg-soft: #494339;
+  --muted: #857d6f;
+  --border: #e6e1d5;
+  --card: #ffffff;
+  --surface-2: #f4f1e9;
+  --accent: #ab2213;
+  --accent-weak: rgba(171, 34, 19, 0.07);
+  --shadow: 0 1px 2px rgba(40, 30, 18, 0.05), 0 10px 30px -12px rgba(40, 30, 18, 0.16);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark {
+  --bg: #14120f;
+  --fg: #ece7dc;
+  --fg-soft: #b9b2a3;
+  --muted: #877f6d;
+  --border: #302b23;
+  --card: #1e1b15;
+  --surface-2: #26221b;
+  --accent: #ef7466;
+  --accent-weak: rgba(239, 116, 102, 0.13);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-feature-settings: "kern", "liga", "calt";
+}
+
+/* Faint paper grain: editorial texture, not a filter gimmick. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+}
+.dark body::before {
+  opacity: 1;
+  mix-blend-mode: screen;
+}
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+/* Anchor / route targets clear the fixed masthead area a little */
+#main {
+  scroll-margin-top: 1rem;
+}
+
+/* Newspaper drop cap for the first letter of a story summary */
+.dropcap::first-letter {
+  float: left;
+  margin: 0.02em 0.08em 0 0;
+  font-family: var(--font-display), "Iowan Old Style", Georgia, serif;
+  font-weight: 500;
+  font-size: 3.1em;
+  line-height: 0.8;
+  color: var(--accent);
+}
+
+/* Editorial display face for mastheads and headlines.
+   Weight is set per-use (font-medium / font-semibold) so Tailwind utilities win. */
+.font-display {
+  font-family: var(--font-display), "Iowan Old Style", Georgia, serif;
+  letter-spacing: -0.014em;
+  font-feature-settings: "kern", "liga", "onum", "pnum";
+}
+h1.font-display,
+h2.font-display,
+h3.font-display {
+  font-weight: 500;
+}
+/* Tighten tracking further as display type gets large */
+h1.font-display {
+  letter-spacing: -0.022em;
+}
+
+/* Small wide-tracked label */
+.kicker {
+  font-size: 0.6875rem;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.hairline {
+  border-color: var(--border);
+}
+
+/* Classic newspaper double rule */
+.rule-double {
+  border-top: 3px double var(--border);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+}
+
+::selection {
+  background: var(--accent-weak);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+mark.loaded {
+  background: var(--accent-weak);
+  color: inherit;
+  box-shadow: inset 0 -0.35em 0 var(--accent-weak);
+  padding: 0 1px;
+}
+
+/* Skip link: visible only on keyboard focus */
+.skip-link {
+  position: fixed;
+  left: 1rem;
+  top: -3rem;
+  z-index: 50;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  transition: top 0.2s var(--ease);
+}
+.skip-link:focus {
+  top: 1rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    animation: reveal 0.55s var(--ease) both;
+  }
+  /* Staggered list entrance; set --i on each child */
+  .stagger > * {
+    animation: reveal 0.5s var(--ease) both;
+    animation-delay: calc(var(--i, 0) * 45ms);
+  }
+  @keyframes reveal {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
+  @keyframes pill-in {
+    from {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.96);
+    }
+  }
+  .pill-in {
+    animation: pill-in 0.4s var(--ease) both;
+  }
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklab, var(--fg) 6%, transparent),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}

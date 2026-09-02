@@ -1,0 +1,18 @@
+{
+  "name": "truenews",
+  "private": true,
+  "description": "Run the TrueNews API and web app together",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "cd backend && .venv\\Scripts\\python -m uvicorn app.main:app --reload",
+    "dev:web": "cd frontend && npm run dev",
+    "ingest": "cd backend && .venv\\Scripts\\python -m app.cli ingest",
+    "reset": "cd backend && .venv\\Scripts\\python -m app.cli reset",
+    "recategorize": "cd backend && .venv\\Scripts\\python -m app.cli recategorize",
+    "verify-feeds": "cd backend && .venv\\Scripts\\python -m app.cli verify-feeds",
+    "setup": "cd frontend && npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

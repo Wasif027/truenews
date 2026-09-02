@@ -1,0 +1,48 @@
+name: ingest
+
+on:
+  schedule:
+    # Hourly. Slower than you'd want for "live" news, but it keeps the Neon free
+    # tier comfortable: pin the compute to 0.25 CU (min = max, no autoscale) and
+    # a run wakes the DB for ~25-35 min, so ~0.25 CU x ~0.6 duty x 744 h is well
+    # under the 191.9 compute-hours/month allowance. Autoscaling or a faster cron
+    # blows that. Needs a public repo — private repos burn Actions minutes fast.
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install .
+      - name: Run ingestion
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          # LLM providers, tried in order. Set the ones you have as repo secrets;
+          # with none set the offline heuristic is used. Each _BASE has a default.
+          # A third provider slot exists too (LLM_3_KEY / _BASE / _MODEL as repo
+          # vars) — add it if you want more headroom.
+          LLM_1_KEY: ${{ secrets.LLM_1_KEY }}
+          LLM_1_BASE: ${{ vars.LLM_1_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai' }}
+          LLM_1_MODEL: ${{ vars.LLM_1_MODEL || 'gemini-3.5-flash,gemini-3.5-flash-lite' }}
+          LLM_2_KEY: ${{ secrets.LLM_2_KEY }}
+          LLM_2_BASE: ${{ vars.LLM_2_BASE || 'https://api.groq.com/openai/v1' }}
+          LLM_2_MODEL: ${{ vars.LLM_2_MODEL || 'openai/gpt-oss-120b,qwen/qwen3.8-27b,openai/gpt-oss-20b' }}
+          LLM_3_KEY: ${{ secrets.LLM_3_KEY }}
+          LLM_3_BASE: ${{ vars.LLM_3_BASE }}
+          LLM_3_MODEL: ${{ vars.LLM_3_MODEL }}
+          COUNTRIES: ${{ vars.COUNTRIES || 'bd,in,pk,ng,ph,uk,us,au,ie,sg,my,ca,nz,za,ke,gh,ug,zw,jp,lk,np,jm' }}
+        run: python -m app.cli ingest
