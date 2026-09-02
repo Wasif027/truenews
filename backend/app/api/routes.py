@@ -173,6 +173,25 @@ def list_countries():
     return [{"code": c, "name": COUNTRIES.get(c, c.upper())} for c in s.country_list]
 
 
+@router.get("/outlets")
+def list_outlets(session: Session = Depends(get_session), country: str | None = None):
+    """The outlets TrueNews reads for a country. Draws on the live DB first (so a
+    just-added source shows once it has been ingested), falling back to the
+    static config for outlets not yet fetched."""
+    from app.ingest.sources import sources_for
+
+    co = _country(country)
+    seen = {
+        o.slug: {"slug": o.slug, "name": o.name, "homepage": o.homepage}
+        for o in session.exec(select(Outlet).where(Outlet.country == co))
+    }
+    for cfg in sources_for(co):
+        seen.setdefault(
+            cfg.slug, {"slug": cfg.slug, "name": cfg.name, "homepage": cfg.homepage}
+        )
+    return sorted(seen.values(), key=lambda o: o["name"].lower())
+
+
 @router.get("/status", response_model=StatusOut)
 def status(session: Session = Depends(get_session), country: str | None = None):
     s = get_settings()

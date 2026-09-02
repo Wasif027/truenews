@@ -98,8 +98,6 @@ SOURCES: dict[str, list[SourceConfig]] = {
             "https://www.observerbd.com",
             ("https://www.observerbd.com/rss.php",),
         ),
-        SourceConfig("risingbd", "Risingbd", "https://www.risingbd.com",
-                     ("https://www.risingbd.com/rss/rss.xml",)),
         SourceConfig("bss", "Bangladesh Sangbad Sangstha", "https://www.bssnews.net",
                      ("https://www.bssnews.net/rss/rss.xml",)),
     ],

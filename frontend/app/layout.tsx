@@ -113,6 +113,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <span aria-hidden className="opacity-40">
               ·
             </span>
+            <Link href="/sources" className="transition-colors hover:text-[var(--fg)]">
+              Sources
+            </Link>
+            <span aria-hidden className="opacity-40">
+              ·
+            </span>
             <Link href="/status" className="transition-colors hover:text-[var(--fg)]">
               Status
             </Link>

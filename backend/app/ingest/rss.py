@@ -38,6 +38,17 @@ def _clean_html(raw: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _is_english(text: str) -> bool:
+    """Cheap script check — the app is English-only, but some outlets publish a
+    mixed-language feed (or a Latin-script feed URL that actually serves the
+    vernacular edition). If most letters aren't Latin, skip the item."""
+    letters = [c for c in text if c.isalpha()]
+    if len(letters) < 4:
+        return True
+    latin = sum(c.isascii() for c in letters)
+    return latin / len(letters) >= 0.6
+
+
 def _parse_date(entry) -> datetime:
     for key in ("published", "updated", "created"):
         val = entry.get(key)
@@ -76,7 +87,7 @@ def _fetch_one(slug: str, feed_url: str) -> list[RawArticle]:
     for entry in parsed.entries:
         url = (entry.get("link") or "").strip()
         headline = _clean_html(entry.get("title") or "")
-        if not url or not headline:
+        if not url or not headline or not _is_english(headline):
             continue
         summary = entry.get("summary") or entry.get("description") or ""
         if not summary and entry.get("content"):

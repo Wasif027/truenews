@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 
 from sqlalchemy import text
 from sqlmodel import Session, SQLModel, create_engine
 
 from app.config import get_settings
+
+log = logging.getLogger("truenews.db")
 
 _settings = get_settings()
 engine = create_engine(
@@ -43,10 +46,18 @@ def init_db() -> None:
 
     SQLModel.metadata.create_all(engine)
 
+    # Each migration is idempotent, so a booting API can just skip any that can't
+    # grab their lock right now (e.g. an ingest run is mid-transaction) — the
+    # schema is already there from a previous boot. Don't hang startup on it.
     with engine.connect() as conn:
+        conn.execute(text("SET lock_timeout = '4s'"))
         for stmt in _MIGRATIONS:
-            conn.execute(text(stmt))
-        conn.commit()
+            try:
+                conn.execute(text(stmt))
+                conn.commit()
+            except Exception as exc:  # noqa: BLE001
+                conn.rollback()
+                log.warning("migration skipped (%s): %s", stmt.split()[0:3], exc)
 
 
 def get_session() -> Iterator[Session]:

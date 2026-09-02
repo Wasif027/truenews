@@ -1,4 +1,4 @@
-import type { CategoryCount, Status, StoryDetail, StoryListItem, User } from "./types";
+import type { CategoryCount, Outlet, Status, StoryDetail, StoryListItem, User } from "./types";
 
 // Server-side: call the backend directly. Browser-side: use a relative path that
 // the Next rewrite (next.config.mjs) proxies to the backend, so there's no CORS
@@ -80,6 +80,8 @@ export const getMyFlags = (id: number) =>
 export const listCategories = (country?: string, minOutlets?: number) =>
   get<CategoryCount[]>("/api/categories", { country, min_outlets: minOutlets }, undefined, 120);
 export const listCountries = () => get<Country[]>("/api/countries", undefined, undefined, 600);
+export const listOutlets = (country?: string) =>
+  get<Outlet[]>("/api/outlets", { country }, undefined, 600);
 export const getStatus = (country?: string) => get<Status>("/api/status", { country });
 
 // --- auth ---
