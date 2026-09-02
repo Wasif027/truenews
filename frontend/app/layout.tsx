@@ -5,6 +5,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CountrySwitcher } from "@/components/CountrySwitcher";
 import { HeaderNav } from "@/components/HeaderNav";
+import { SourcesLink } from "@/components/SourcesLink";
 
 // Body / UI face. A humanist grotesque with real editorial character and
 // built-in tabular figures — Inter reads as a default; this doesn't.
@@ -91,7 +92,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <HeaderNav />
               </div>
               <div className="rule-double flex items-center justify-between gap-3 py-2">
-                <CountrySwitcher />
+                <div className="flex items-center gap-3">
+                  <CountrySwitcher />
+                  <SourcesLink />
+                </div>
                 <time className="kicker hidden whitespace-nowrap sm:inline">{today()}</time>
               </div>
             </div>
