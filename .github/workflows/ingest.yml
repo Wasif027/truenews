@@ -1,13 +1,12 @@
 name: ingest
 
 on:
-  schedule:
-    # Hourly. Slower than you'd want for "live" news, but it keeps the Neon free
-    # tier comfortable: pin the compute to 0.25 CU (min = max, no autoscale) and
-    # a run wakes the DB for ~25-35 min, so ~0.25 CU x ~0.6 duty x 744 h is well
-    # under the 191.9 compute-hours/month allowance. Autoscaling or a faster cron
-    # blows that. Needs a public repo — private repos burn Actions minutes fast.
-    - cron: "0 * * * *"
+  # Triggered by an external scheduler (cron-job.org) hitting the workflow
+  # dispatch API, not GitHub's own `schedule:` — GitHub's scheduled runs are the
+  # lowest-priority queue and were firing roughly 1 hour in 8 for this repo.
+  # A `schedule:` block here as well would double-trigger (external + GitHub),
+  # and with concurrency queuing rather than cancelling, that's a wasteful second
+  # full ingest per hour — so it's left out on purpose.
   workflow_dispatch:
 
 concurrency:
