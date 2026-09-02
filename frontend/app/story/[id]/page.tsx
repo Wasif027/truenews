@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CoverageBar } from "@/components/CoverageBar";
+import { CoverageStrip } from "@/components/CoverageStrip";
 import { HeadlineComparison } from "@/components/HeadlineComparison";
 import { ReadAtSource } from "@/components/ReadAtSource";
 import { ReadingProgress } from "@/components/ReadingProgress";
@@ -52,11 +52,16 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
           {story.title}
         </h1>
 
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-0.5">
-          <CoverageBar reported={story.coverage.reported.length} total={totalOutlets} />
+        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 pt-0.5">
+          <span className="inline-flex items-center gap-2 text-xs" style={{ color: "var(--fg-soft)" }}>
+            <CoverageStrip count={story.coverage.reported.length} total={totalOutlets} />
+            <span className="tabular font-medium">
+              {story.coverage.reported.length} of {totalOutlets} sources
+            </span>
+          </span>
           {story.first_reported_by && (
             <span className="text-xs" style={{ color: "var(--muted)" }}>
-              First reported by{" "}
+              <span className="opacity-50">·</span> first reported by{" "}
               <span style={{ color: "var(--fg-soft)" }}>{story.first_reported_by.name}</span>,{" "}
               <span className="tabular">{timeAgo(story.first_reported_at)}</span>
             </span>
@@ -104,18 +109,25 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
       )}
 
       {(story.coverage_detail || story.coverage_diff) && story.sources.length >= 2 && (
-        <section className="mt-9">
-          <SectionLabel>How coverage differs</SectionLabel>
-          <p
-            className={
-              story.coverage_detail
-                ? "text-[0.98rem] leading-[1.75]"
-                : "font-display text-[1.1rem] italic leading-[1.6]"
-            }
-            style={{ color: "var(--fg-soft)" }}
+        <section className="mt-10">
+          <div
+            className="panel overflow-hidden px-6 py-6 sm:px-8 sm:py-7"
+            style={{ borderTop: "3px solid var(--accent)" }}
           >
-            {story.coverage_detail || story.coverage_diff}
-          </p>
+            <span className="kicker" style={{ color: "var(--accent-ink)" }}>
+              How the coverage differs
+            </span>
+            <p
+              className={
+                story.coverage_detail
+                  ? "mt-3 text-[1.02rem] leading-[1.72]"
+                  : "font-display mt-3 text-[1.15rem] italic leading-[1.55]"
+              }
+              style={{ color: "var(--fg)" }}
+            >
+              {story.coverage_detail || story.coverage_diff}
+            </p>
+          </div>
         </section>
       )}
 

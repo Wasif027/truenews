@@ -4,29 +4,35 @@
 
 :root {
   --bg: #fbfaf7;
+  --bg-tint: #f6f2ea;
   --fg: #201e1a;
   --fg-soft: #494339;
   --muted: #857d6f;
   --border: #e6e1d5;
   --card: #ffffff;
   --surface-2: #f4f1e9;
-  --accent: #ab2213;
-  --accent-weak: rgba(171, 34, 19, 0.07);
-  --shadow: 0 1px 2px rgba(40, 30, 18, 0.05), 0 10px 30px -12px rgba(40, 30, 18, 0.16);
+  --accent: #b0271a;
+  --accent-ink: #b0271a;
+  --accent-weak: rgba(176, 39, 26, 0.08);
+  --pip-off: #d9d2c4;
+  --shadow: 0 1px 2px rgba(40, 30, 18, 0.05), 0 18px 40px -20px rgba(40, 30, 18, 0.22);
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .dark {
   --bg: #14120f;
+  --bg-tint: #1a1712;
   --fg: #ece7dc;
-  --fg-soft: #b9b2a3;
-  --muted: #877f6d;
-  --border: #302b23;
+  --fg-soft: #bcb5a5;
+  --muted: #8b8270;
+  --border: #322c24;
   --card: #1e1b15;
-  --surface-2: #26221b;
-  --accent: #ef7466;
-  --accent-weak: rgba(239, 116, 102, 0.13);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 16px 40px -12px rgba(0, 0, 0, 0.55);
+  --surface-2: #262019;
+  --accent: #f47f6f;
+  --accent-ink: #f89485;
+  --accent-weak: rgba(244, 127, 111, 0.14);
+  --pip-off: #3a342b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 24px 50px -22px rgba(0, 0, 0, 0.6);
 }
 
 html {
@@ -44,6 +50,8 @@ html {
 
 body {
   background: var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-tint) 0%, var(--bg) 34rem);
+  background-attachment: fixed;
   color: var(--fg);
   font-feature-settings: "kern", "liga", "calt";
 }
@@ -126,6 +134,26 @@ h1.font-display {
 
 .hairline {
   border-color: var(--border);
+}
+
+/* Raised panel for the lead story — a front-page block, lifted off the column. */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  border-radius: 10px;
+}
+
+/* Pickup meter: one pip per outlet that ran the story, ghosts for the rest. */
+.pip {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pip.off {
+  background: var(--pip-off);
 }
 
 /* Classic newspaper double rule */

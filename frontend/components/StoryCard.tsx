@@ -1,34 +1,46 @@
 import Link from "next/link";
 import type { StoryListItem } from "@/lib/types";
 import { categoryLabel, timeAgo } from "@/lib/format";
+import { CoverageStrip } from "./CoverageStrip";
+
+function Dot() {
+  return (
+    <span className="opacity-40" aria-hidden>
+      ·
+    </span>
+  );
+}
 
 function Meta({ story, showCountry }: { story: StoryListItem; showCountry?: boolean }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
+    <div
+      className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs"
+      style={{ color: "var(--muted)" }}
+    >
       {showCountry && (
         <>
-          <span className="kicker" style={{ color: "var(--accent)" }}>
+          <span className="kicker" style={{ color: "var(--accent-ink)" }}>
             {story.country}
           </span>
-          <span className="opacity-40" aria-hidden>
-            ·
-          </span>
+          <Dot />
         </>
       )}
       <span className="kicker">{categoryLabel(story.categories)}</span>
-      <span className="opacity-40" aria-hidden>
-        ·
-      </span>
+      <Dot />
       <span className="tabular" suppressHydrationWarning>
         {timeAgo(story.updated_at)}
       </span>
-      <span className="opacity-40" aria-hidden>
-        ·
-      </span>
+      <Dot />
       {story.is_single_source ? (
-        <span className="italic">single source</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="pip off" aria-hidden />
+          <span className="italic">one source</span>
+        </span>
       ) : (
-        <span className="tabular">{story.outlet_count} outlets</span>
+        <span className="inline-flex items-center gap-1.5">
+          <CoverageStrip count={story.outlet_count} />
+          <span className="tabular">{story.outlet_count} sources</span>
+        </span>
       )}
     </div>
   );
@@ -36,25 +48,22 @@ function Meta({ story, showCountry }: { story: StoryListItem; showCountry?: bool
 
 export function LeadStory({ story }: { story: StoryListItem }) {
   return (
-    <div className="border-t-2" style={{ borderColor: "var(--accent)" }}>
-      <span
-        className="kicker mt-3 block"
-        style={{ color: "var(--accent)" }}
-      >
+    <div>
+      <span className="kicker mb-2 block" style={{ color: "var(--accent-ink)" }}>
         The lead story
       </span>
       <Link
         href={`/story/${story.id}`}
-        className="group -mx-3 mt-1 block rounded-lg px-3 pb-7 pt-2 transition-colors duration-200 hover:bg-[var(--surface-2)]"
+        className="group panel block px-6 pb-7 pt-5 transition-[border-color,box-shadow] duration-200 hover:border-[var(--accent)] sm:px-8 sm:pt-6"
       >
         <Meta story={story} />
-        <div className="mt-2.5 grid gap-x-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
-          <h2 className="font-display text-[1.85rem] leading-[1.08] tracking-[-0.02em] transition-colors duration-200 group-hover:text-[var(--accent)] sm:text-[2.7rem] sm:leading-[1.03]">
+        <div className="mt-3 grid gap-x-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
+          <h2 className="font-display text-[1.9rem] leading-[1.06] tracking-[-0.022em] transition-colors duration-200 group-hover:text-[var(--accent)] sm:text-[2.8rem] sm:leading-[1.02]">
             {story.title}
           </h2>
           {story.summary && (
             <p
-              className="mt-3 line-clamp-5 text-[0.98rem] leading-relaxed lg:mt-2"
+              className="mt-3 line-clamp-6 text-[0.98rem] leading-relaxed lg:mt-1.5"
               style={{ color: "var(--fg-soft)" }}
             >
               {story.summary}
@@ -62,10 +71,10 @@ export function LeadStory({ story }: { story: StoryListItem }) {
           )}
         </div>
         <span
-          className="mt-3 inline-flex items-center gap-1 text-xs font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-          style={{ color: "var(--accent)" }}
+          className="mt-4 inline-flex items-center gap-1 text-xs font-medium transition-colors"
+          style={{ color: "var(--accent-ink)" }}
         >
-          Compare coverage
+          Compare the coverage
           <span className="transition-transform duration-200 group-hover:translate-x-0.5">→</span>
         </span>
       </Link>
