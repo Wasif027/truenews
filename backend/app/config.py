@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,22 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     database_url: str = "postgresql+psycopg://truenews:truenews@localhost:5432/truenews"
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalise_db_url(cls, v: str) -> str:
+        # Managed Postgres (Neon, Render, Heroku, ...) hand out plain
+        # `postgres://` / `postgresql://` URLs. SQLAlchemy needs the driver
+        # named and this project uses psycopg 3, so coerce the scheme rather
+        # than making every deploy get the prefix exactly right.
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                v = "postgresql+psycopg://" + v[len(prefix) :]
+                break
+        # Neon and most managed Postgres require TLS; add it if the URL omits it.
+        if "neon.tech" in v and "sslmode=" not in v:
+            v += ("&" if "?" in v else "?") + "sslmode=require"
+        return v
     # Countries to ingest and serve, comma-separated. The first is the default.
     countries: str = "bd,in"
 
