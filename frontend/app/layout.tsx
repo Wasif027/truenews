@@ -4,6 +4,7 @@ import { IBM_Plex_Sans, Newsreader } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CountrySwitcher } from "@/components/CountrySwitcher";
+import { Dateline } from "@/components/Dateline";
 import { HeaderNav } from "@/components/HeaderNav";
 import { SourcesLink } from "@/components/SourcesLink";
 import { Wordmark } from "@/components/Wordmark";
@@ -52,15 +53,6 @@ try {
 } catch (e) {}
 `;
 
-function today() {
-  return new Date().toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${plex.variable} ${newsreader.variable}`} suppressHydrationWarning>
@@ -95,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <div className="rule-double pb-2 pt-2">
                 <div className="flex items-center justify-between gap-3">
                   <CountrySwitcher />
-                  <time className="kicker hidden whitespace-nowrap sm:inline">{today()}</time>
+                  <Dateline />
                 </div>
                 <SourcesLink />
               </div>

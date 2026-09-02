@@ -211,7 +211,11 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
         cluster.hotness = _hotness(
             _effective_outlets([(a.outlet_id, a.headline) for a in arts]), len(arts), newest
         )
-        cluster.updated_at = utcnow()
+        # "Updated" = the most recent time an outlet published on this story, not
+        # the time this job ran — otherwise every story reads as "just now" after
+        # each ingest. Clamp to now so a feed with a bad future date can't pin a
+        # story to the top forever.
+        cluster.updated_at = min(newest, utcnow())
         touched.append(cluster)
 
     session.commit()
