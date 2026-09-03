@@ -40,10 +40,12 @@ def _sync_outlets(session: Session, country: str) -> dict[str, Outlet]:
     return existing
 
 
-def _ingest_articles(session: Session, country: str, outlets: dict[str, Outlet]) -> list[Article]:
-    # Global, not per-country: `article.url` is unique across the whole table, and
-    # some outlets syndicate (e.g. Guardian UK / Guardian AU run the same piece).
-    known_urls = set(session.exec(select(Article.url)).all())
+def _ingest_articles(
+    session: Session, country: str, outlets: dict[str, Outlet], known_urls: set[str]
+) -> list[Article]:
+    # `known_urls` is the set of every URL already stored — global, not per-country
+    # (article.url is unique table-wide, and outlets syndicate). It's passed in and
+    # mutated so run_all() reads it from the DB once, not once per country.
     new: list[Article] = []
     for cfg in sources_for(country):
         outlet = outlets[cfg.slug]
@@ -158,8 +160,16 @@ def _recompute_counts(session: Session, country: str) -> None:
 def _recluster(session: Session, country: str) -> list[Cluster]:
     s = get_settings()
     cutoff = utcnow() - timedelta(hours=s.cluster_window_hours)
-    rows = session.exec(
-        select(Article).where(
+    # Column-select, not whole ORM rows: the embedding vector alone is ~1.5 KB and
+    # this pulls the whole window every run — skipping url / lead_text / byline
+    # keeps a big chunk of Neon's egress budget. Article <-> cluster membership is
+    # written as one bulk UPDATE at the end instead of ORM dirty-tracking.
+    rows = session.execute(
+        select(
+            Article.id, Article.outlet_id, Article.headline, Article.published_at,
+            Article.category, Article.category_secondary, Article.cluster_id,
+            Article.embedding,
+        ).where(
             Article.country == country,
             Article.published_at >= cutoff,
             Article.embedding.is_not(None),  # type: ignore[union-attr]
@@ -168,9 +178,9 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
     if not rows:
         return []
 
-    by_id = {a.id: a for a in rows}
-    ids = [a.id for a in rows]
-    emb = np.array([a.embedding for a in rows], dtype=np.float32)
+    by_id = {r.id: r for r in rows}
+    ids = [r.id for r in rows]
+    emb = np.array([r.embedding for r in rows], dtype=np.float32)
     groups = cluster_by_similarity(ids, emb, s.cluster_sim_threshold)
 
     # 1. decide: reuse an existing cluster, or mint a new one
@@ -196,15 +206,16 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
     for plan, cluster in zip(to_create, created, strict=True):
         plan[1] = cluster
 
-    # 3. fill in cluster fields and article membership
+    # 3. fill in cluster fields; collect article membership for one bulk write
     touched: list[Cluster] = []
+    moves: dict[int, list[int]] = defaultdict(list)
     for arts, cluster in plans:
         g_emb = np.array([a.embedding for a in arts], dtype=np.float32)
         central = arts[medoid_index(g_emb)]
         earliest = min(arts, key=lambda a: a.published_at)
         newest = max(a.published_at for a in arts)
         for a in arts:
-            a.cluster_id = cluster.id
+            moves[cluster.id].append(a.id)
         cluster.canonical_title = central.headline
         cluster.category, cluster.category_secondary = _cluster_cats(arts)
         cluster.first_article_id = earliest.id
@@ -218,6 +229,13 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
         cluster.updated_at = min(newest, utcnow())
         touched.append(cluster)
 
+    for cid, aids in moves.items():
+        for i in range(0, len(aids), 500):
+            session.execute(
+                update(Article)
+                .where(Article.id.in_(aids[i : i + 500]))  # type: ignore[attr-defined]
+                .values(cluster_id=cid)
+            )
     session.commit()
     _recompute_counts(session, country)
     log.info("reclustered window: %d stories touched", len(touched))
@@ -425,12 +443,14 @@ def recategorize() -> dict:
     return {"articles": len(rows), "changed": changed}
 
 
-def run(country: str | None = None) -> dict:
+def run(country: str | None = None, known_urls: set[str] | None = None) -> dict:
     country = country or get_settings().default_country
     init_db()
     with Session(engine, expire_on_commit=False) as session:
+        if known_urls is None:
+            known_urls = set(session.exec(select(Article.url)))
         outlets = _sync_outlets(session, country)
-        new_articles = _ingest_articles(session, country, outlets)
+        new_articles = _ingest_articles(session, country, outlets, known_urls)
         _embed_new(session, new_articles)
         touched = _recluster(session, country)
         _summarise_clusters(session, touched)
@@ -446,10 +466,13 @@ def run(country: str | None = None) -> dict:
 
 def run_all() -> list[dict]:
     """Ingest every configured country, one after another."""
+    init_db()
+    with Session(engine) as session:
+        known_urls = set(session.exec(select(Article.url)))  # read once, share across countries
     results = []
     for country in get_settings().country_list:
         try:
-            results.append(run(country))
+            results.append(run(country, known_urls))
         except Exception:
             log.exception("ingest failed for %s", country)
             results.append({"country": country, "error": True})
