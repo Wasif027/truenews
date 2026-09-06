@@ -49,7 +49,7 @@ def list_stories(
     q: str | None = None,
     min_outlets: int = Query(1, ge=1),
     sort: str = Query("hot", pattern="^(hot|new)$"),
-    window_hours: int = Query(96, ge=1, le=720),
+    window_hours: int = Query(84, ge=1, le=720),
     limit: int = Query(30, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):

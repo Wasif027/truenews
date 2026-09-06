@@ -342,10 +342,12 @@ def _flag_new(session: Session, articles: list[Article]) -> None:
 
 
 def _prune_old(session: Session, country: str) -> None:
-    """Drop articles we fetched more than (window + 4 days) ago, and any cluster
-    left empty — the feed only looks at the last ~4 days anyway. Clusters a user
-    has saved or liked are kept indefinitely so their Saved tab keeps working."""
-    cutoff = utcnow() - timedelta(hours=get_settings().cluster_window_hours + 96)
+    """Drop articles we fetched more than (clustering window + 1 day) ago, and any
+    cluster left empty. Clustering only ever looks at the last `window` hours; the
+    extra day is grace so a story doesn't vanish while someone's reading it. A
+    shorter tail keeps the article table (and the queries that scan it) small.
+    Clusters a user saved or liked are kept indefinitely."""
+    cutoff = utcnow() - timedelta(hours=get_settings().cluster_window_hours + 24)
     # article ids that are old AND whose cluster nobody has kept
     old_articles = (
         "select a.id from article a where a.country = :c and a.fetched_at < :cut "
