@@ -47,6 +47,19 @@ export default function HowItWorks() {
           text is never stored. Nothing is invented, and it never says which outlet got it right.
         </Section>
 
+        <Section title="Compare (when you paste your own links)">
+          The <em>Compare</em> page is the one place TrueNews reads full articles you choose. Paste
+          two or more links about the same event and it fetches each page, pulls out the body text,
+          and asks the write-up model to lay the versions side by side: the account they share,
+          where they agree, where they diverge, and &mdash; for each one &mdash; how it is angled,
+          measured against plain wire-service style rather than against the other links you pasted.
+          So if every article you give it leans the same way, it says so and names what is missing,
+          instead of calling the least slanted one &ldquo;neutral&rdquo;. Every lean label comes
+          with the quotes from that article it rests on. It describes one story as told by one
+          outlet on one day, not a standing verdict on the outlet, and the fetched text is dropped
+          as soon as the comparison is written.
+        </Section>
+
         <Section title="“4 of 8 outlets covered this”">
           A head count of how many <em>independent</em> newsrooms ran the story. When two mastheads
           publish the same wire copy or the same group&rsquo;s national article word for word, that
@@ -56,11 +69,12 @@ export default function HowItWorks() {
         </Section>
 
         <Section title="The highlighted words">
-          TrueNews marks words in the original headlines that lean emotional or loaded &mdash;
-          &ldquo;slams&rdquo;, &ldquo;chaos&rdquo;, &ldquo;humiliation&rdquo;, rows of exclamation
-          marks. It&rsquo;s a straightforward word check, not a political-bias meter, and it never
-          labels anything &ldquo;left&rdquo; or &ldquo;right&rdquo; &mdash; those labels don&rsquo;t
-          mean the same thing across the countries here.
+          On every story, TrueNews marks words in the original headlines that lean emotional or
+          loaded &mdash; &ldquo;slams&rdquo;, &ldquo;chaos&rdquo;, &ldquo;humiliation&rdquo;, rows
+          of exclamation marks. That part is a straightforward word check, not a political-bias
+          meter. The reasoned lean read &mdash; the one that will say an article &ldquo;amplifies
+          the government line&rdquo; &mdash; only ever runs on the <em>Compare</em> page, on links
+          you choose, and always shows the quotes behind the call.
         </Section>
 
         <Section title="What it deliberately doesn’t do">

@@ -104,6 +104,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             className="flex items-center justify-center gap-3 border-t hairline pt-5 text-xs"
             style={{ color: "var(--muted)" }}
           >
+            <Link href="/compare" className="transition-colors hover:text-[var(--fg)]">
+              Compare
+            </Link>
+            <span aria-hidden className="opacity-40">
+              ·
+            </span>
             <Link href="/how-it-works" className="transition-colors hover:text-[var(--fg)]">
               How it works
             </Link>

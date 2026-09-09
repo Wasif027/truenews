@@ -391,6 +391,66 @@ def _quota_limit(resp: httpx.Response) -> bool:
     return resp.status_code == 429 and any(h in resp.text.lower() for h in _QUOTA_HINTS)
 
 
+def call_llm_json(system: str, user: str, *, timeout: float = 60.0) -> dict:
+    """Run one JSON-mode chat completion through the same provider chain, spacing
+    and cooldown the ingest summariser uses (so /compare and ingestion don't each
+    hammer a provider the other already knows is rate-limited). Raises RuntimeError
+    if every provider fails or the chain is cooling down."""
+    global _last_call, _cooldown_until
+    if time.monotonic() < _cooldown_until:
+        raise RuntimeError("LLM cooling down after rate limits")
+
+    rows = _models()
+    if not rows:
+        raise RuntimeError("no LLM provider configured")
+
+    resp: httpx.Response | None = None
+    limited = 0
+    quota_hit = False
+    for base, key, model in rows:
+        payload = {
+            "model": model,
+            "temperature": 0.2,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        }
+        for attempt in range(2):
+            gap = time.monotonic() - _last_call
+            if gap < _MIN_GAP_S:
+                time.sleep(_MIN_GAP_S - gap)
+            resp = httpx.post(
+                f"{base}/chat/completions",
+                headers={"Authorization": f"Bearer {key}"},
+                json=payload,
+                timeout=httpx.Timeout(timeout),
+            )
+            _last_call = time.monotonic()
+            if resp.status_code == 429:
+                limited += 1
+                if _quota_limit(resp):
+                    quota_hit = True
+                elif attempt == 0:
+                    time.sleep(min(6.0, float(resp.headers.get("retry-after") or 4)))
+                    continue
+            break
+
+        if resp.status_code == 200:
+            try:
+                data = json.loads(resp.json()["choices"][0]["message"]["content"])
+                if isinstance(data, dict):
+                    return data
+            except (KeyError, ValueError):
+                pass
+        log.info("%s (%s) unusable (%s); trying next", model, base, resp.status_code)
+
+    if limited >= len(rows):
+        _cooldown_until = time.monotonic() + (900 if quota_hit else 60)
+    raise RuntimeError("every LLM provider failed for this request")
+
+
 def _llm(items: list[SourceItem]) -> SummaryResult:
     global _last_call, _cooldown_until
     if time.monotonic() < _cooldown_until:

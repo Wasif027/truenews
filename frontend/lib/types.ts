@@ -39,6 +39,37 @@ export type StoryDetail = StoryListItem & {
 
 export type User = { username: string };
 
+export type OutletLean = {
+  outlet: string;
+  lean: string;
+  confidence: "low" | "medium" | "high";
+  evidence: string[];
+  loaded_language: string[];
+};
+
+export type CompareSource = {
+  outlet: string;
+  title: string;
+  url: string;
+  published_at: string | null;
+  lean: OutletLean | null;
+};
+
+export type CompareResult = {
+  relation: "same_event" | "related" | "unrelated";
+  relation_note: string | null;
+  shared_facts: string;
+  agreements: string[];
+  differences: string[];
+  consensus_slant: string | null;
+  blind_spots: string[];
+  takeaway: string;
+  via: "llm" | "offline";
+  sources: CompareSource[];
+  unmatched_leans: OutletLean[];
+  failed: { url: string; reason: string }[];
+};
+
 export type CategoryCount = { category: string; count: number };
 
 export type Status = {

@@ -1,4 +1,12 @@
-import type { CategoryCount, Outlet, Status, StoryDetail, StoryListItem, User } from "./types";
+import type {
+  CategoryCount,
+  CompareResult,
+  Outlet,
+  Status,
+  StoryDetail,
+  StoryListItem,
+  User,
+} from "./types";
 
 // Server-side: call the backend directly. Browser-side: use a relative path that
 // the Next rewrite (next.config.mjs) proxies to the backend, so there's no CORS
@@ -102,3 +110,33 @@ export const setSave = (id: number, on: boolean) =>
   send<{ on: boolean }>("PUT", `/api/stories/${id}/save?on=${on}`);
 export const recordVisit = (id: number) =>
   send<unknown>("POST", `/api/stories/${id}/visit`);
+
+// --- compare ---
+export class CompareError extends Error {
+  failed?: { url: string; reason: string }[];
+  constructor(message: string, failed?: { url: string; reason: string }[]) {
+    super(message);
+    this.failed = failed;
+  }
+}
+
+export async function compareArticles(urls: string[]): Promise<CompareResult> {
+  const res = await fetch(resolve("/api/compare"), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ urls }),
+  });
+  if (res.ok) return res.json() as Promise<CompareResult>;
+
+  const detail = (await res.json().catch(() => null))?.detail;
+  if (detail && typeof detail === "object") {
+    throw new CompareError(detail.message ?? "Comparison failed.", detail.failed);
+  }
+  throw new CompareError(
+    typeof detail === "string"
+      ? detail
+      : res.status === 429
+        ? "You've hit the hourly limit for comparisons. Try again later."
+        : "Comparison failed. Please try again.",
+  );
+}

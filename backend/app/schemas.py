@@ -49,6 +49,37 @@ class CategoryCount(BaseModel):
     count: int
 
 
+class OutletLeanOut(BaseModel):
+    outlet: str
+    lean: str
+    confidence: str  # "low" | "medium" | "high"
+    evidence: list[str] = []
+    loaded_language: list[str] = []
+
+
+class CompareSourceOut(BaseModel):
+    outlet: str
+    title: str
+    url: str
+    published_at: str | None = None
+    lean: OutletLeanOut | None = None
+
+
+class CompareResultOut(BaseModel):
+    relation: str  # "same_event" | "related" | "unrelated"
+    relation_note: str | None = None
+    shared_facts: str
+    agreements: list[str] = []
+    differences: list[str] = []
+    consensus_slant: str | None = None
+    blind_spots: list[str] = []
+    takeaway: str
+    via: str  # "llm" | "offline"
+    sources: list[CompareSourceOut]
+    unmatched_leans: list[OutletLeanOut] = []
+    failed: list[dict] = []
+
+
 class StatusOut(BaseModel):
     country: str
     outlets: int

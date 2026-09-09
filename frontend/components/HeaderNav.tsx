@@ -35,6 +35,7 @@ export function HeaderNav() {
 
   return (
     <div className="flex items-center gap-4 pb-1 text-sm" style={{ color: "var(--muted)" }}>
+      {link("/compare", "Compare")}
       <span className="hidden sm:inline">{link("/how-it-works", "How it works")}</span>
 
       {!loading &&
