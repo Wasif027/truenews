@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import numpy as np
 from sqlalchemy import text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlmodel import Session, select
 
 from app.config import get_settings
@@ -43,30 +44,50 @@ def _sync_outlets(session: Session, country: str) -> dict[str, Outlet]:
 def _ingest_articles(
     session: Session, country: str, outlets: dict[str, Outlet], known_urls: set[str]
 ) -> list[Article]:
-    # `known_urls` is the set of every URL already stored — global, not per-country
-    # (article.url is unique table-wide, and outlets syndicate). It's passed in and
-    # mutated so run_all() reads it from the DB once, not once per country.
-    new: list[Article] = []
+    # `known_urls` is a cheap first filter for URLs already stored. It is NOT
+    # authoritative — the parallel ingest shards each hold their own set, and
+    # outlets syndicate across countries — so the insert itself is the real guard:
+    # ON CONFLICT DO NOTHING on the unique url, RETURNING only the rows that landed.
+    rows: list[dict] = []
     for cfg in sources_for(country):
         outlet = outlets[cfg.slug]
         for raw in fetch_feed(cfg):
             if raw.url in known_urls:
                 continue
             known_urls.add(raw.url)
-            session.add(
-                art := Article(
-                    outlet_id=outlet.id,
-                    country=country,
-                    url=raw.url,
-                    headline=raw.headline,
-                    byline=raw.byline,
-                    lead_text=raw.lead_text,
-                    category=raw.category,
-                    published_at=raw.published_at,
-                )
+            rows.append(
+                {
+                    "outlet_id": outlet.id,
+                    "country": country,
+                    "url": raw.url,
+                    "headline": raw.headline,
+                    "byline": raw.byline,
+                    "lead_text": raw.lead_text,
+                    "category": raw.category,
+                    "published_at": raw.published_at,
+                    "fetched_at": utcnow(),
+                }
             )
-            new.append(art)
+    if not rows:
+        log.info("ingested 0 new articles")
+        return []
+
+    new_ids: list[int] = []
+    for i in range(0, len(rows), 500):
+        res = session.execute(
+            pg_insert(Article)
+            .on_conflict_do_nothing(index_elements=["url"])
+            .returning(Article.id),
+            rows[i : i + 500],
+        )
+        new_ids.extend(r[0] for r in res)
     session.commit()
+
+    new = (
+        session.exec(select(Article).where(Article.id.in_(new_ids))).all()  # type: ignore[attr-defined]
+        if new_ids
+        else []
+    )
     log.info("ingested %d new articles", len(new))
     return new
 
@@ -91,7 +112,21 @@ def _cluster_cats(arts: list[Article]) -> tuple[str, str | None]:
     return primary, None
 
 
-def _embed_new(session: Session, articles: list[Article]) -> None:
+def _embed_new(session: Session, country: str, articles: list[Article]) -> None:
+    # Also pick up any in-window article for this country that still has no
+    # embedding — a run killed between ingest and here would otherwise strand
+    # those forever (they're already in `known_urls`, so never re-ingested, and
+    # a later run's `articles` list won't include them).
+    cutoff = utcnow() - timedelta(hours=get_settings().cluster_window_hours + 24)
+    seen = {a.id for a in articles}
+    stragglers = session.exec(
+        select(Article).where(
+            Article.country == country,
+            Article.embedding.is_(None),  # type: ignore[union-attr]
+            Article.published_at >= cutoff,
+        )
+    ).all()
+    articles = articles + [a for a in stragglers if a.id not in seen]
     if not articles:
         return
     # Clustering embedding: headline only. Including the lead collapsed similarities
@@ -288,10 +323,14 @@ def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
         extract.prefetch(need)
 
     done = 0
+    soft_fails = 0  # clusters we wanted on the model but got the offline path
     for cluster in todo:
         arts = arts_by_cluster[cluster.id]
         signature = ",".join(map(str, sorted({a.outlet_id for a in arts})))
-        use_llm = cluster.id in llm_ids
+        # Once the model has fallen back a few times in a row it's rate/quota
+        # limited for the rest of this run — stop asking, or a full shard spends
+        # its time cycling 429s. A later run retries the "~"-marked stories.
+        use_llm = cluster.id in llm_ids and soft_fails < 3
 
         picked = _pick_per_outlet(arts)
         if use_llm and len(picked) > 5:
@@ -323,6 +362,10 @@ def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
         # (rate-limited -> offline) gets a "~" marker so a later run retries it
         # for the full comparison instead of skipping it forever.
         soft = use_llm and result.via != "llm"
+        if soft:
+            soft_fails += 1
+        elif result.via == "llm":
+            soft_fails = 0
         cluster.summarised_outlet_ids = f"{signature}~" if soft else signature
         done += 1
         # Commit as we go: a long LLM batch would otherwise hold one transaction
@@ -342,15 +385,19 @@ def _flag_new(session: Session, articles: list[Article]) -> None:
 
 
 def _prune_old(session: Session, country: str) -> None:
-    """Drop articles we fetched more than (clustering window + 1 day) ago, and any
-    cluster left empty. Clustering only ever looks at the last `window` hours; the
-    extra day is grace so a story doesn't vanish while someone's reading it. A
-    shorter tail keeps the article table (and the queries that scan it) small.
-    Clusters a user saved or liked are kept indefinitely."""
+    """Drop articles older than (clustering window + 1 day) — by either when we
+    fetched them or the date they carry — and any cluster left empty. Clustering
+    only ever looks at the last `window` hours; the extra day is grace so a story
+    doesn't vanish while someone's reading it. A shorter tail keeps the article
+    table (and the queries that scan it) small. Clusters a user saved or liked
+    are kept indefinitely."""
     cutoff = utcnow() - timedelta(hours=get_settings().cluster_window_hours + 24)
-    # article ids that are old AND whose cluster nobody has kept
+    # article ids that are old (by fetch time or publish date) AND whose cluster
+    # nobody has kept. The published_at check clears feed items that arrive with a
+    # stale or garbage date — they never cluster, so they'd otherwise just sit.
     old_articles = (
-        "select a.id from article a where a.country = :c and a.fetched_at < :cut "
+        "select a.id from article a where a.country = :c "
+        "and (a.fetched_at < :cut or a.published_at < :cut) "
         "and (a.cluster_id is null or a.cluster_id not in ("
         "  select cluster_id from \"like\" union select cluster_id from save))"
     )
@@ -453,11 +500,14 @@ def run(country: str | None = None, known_urls: set[str] | None = None) -> dict:
             known_urls = set(session.exec(select(Article.url)))
         outlets = _sync_outlets(session, country)
         new_articles = _ingest_articles(session, country, outlets, known_urls)
-        _embed_new(session, new_articles)
+        _embed_new(session, country, new_articles)
+        _flag_new(session, new_articles)
+        # Prune before the expensive clustering + summary steps, not after — a run
+        # that gets killed partway (GitHub caps the job at 45 min) must still have
+        # trimmed the DB, or the table grows unbounded and every run gets slower.
+        _prune_old(session, country)
         touched = _recluster(session, country)
         _summarise_clusters(session, touched)
-        _flag_new(session, new_articles)
-        _prune_old(session, country)
         return {
             "country": country,
             "new_articles": len(new_articles),

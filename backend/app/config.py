@@ -66,7 +66,10 @@ class Settings(BaseSettings):
         ]
         return [s for s in slots if all(s)]
 
-    summary_budget_per_run: int = 40
+    # Clusters per country per run that get the full model comparison. The rest of
+    # the window still gets the offline summary + one-line diff. Kept modest: the
+    # ingest now runs as ~6 parallel shards that share one free-tier LLM quota.
+    summary_budget_per_run: int = 12
 
     frontend_origin: str = "http://localhost:3000"
 

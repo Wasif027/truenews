@@ -4,19 +4,33 @@ on:
   # Triggered by an external scheduler (cron-job.org) hitting the workflow
   # dispatch API, not GitHub's own `schedule:` — GitHub's scheduled runs are the
   # lowest-priority queue and were firing roughly 1 hour in 8 for this repo.
-  # A `schedule:` block here as well would double-trigger (external + GitHub),
-  # and with concurrency queuing rather than cancelling, that's a wasteful second
-  # full ingest per hour — so it's left out on purpose.
   workflow_dispatch:
 
 concurrency:
+  # One ingest cycle at a time. A second cron fire while one is still running
+  # queues rather than piling a duplicate crawl on top.
   group: ingest
   cancel-in-progress: false
 
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    # 22 countries in one sequential job blew past the 50-min cap every run and
+    # got cancelled, so only the first few ever refreshed. Now the countries are
+    # split into shards that run in parallel — this repo is public, so GitHub
+    # gives unlimited concurrent Actions minutes. India is heaviest, on its own.
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        countries:
+          - "in"
+          - "bd,pk"
+          - "ng,uk,us"
+          - "ph,au,ie,sg"
+          - "my,ca,nz,za"
+          - "ke,gh,ug,zw"
+          - "jp,lk,np,jm"
     defaults:
       run:
         working-directory: backend
@@ -32,8 +46,6 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           # LLM providers, tried in order. Set the ones you have as repo secrets;
           # with none set the offline heuristic is used. Each _BASE has a default.
-          # A third provider slot exists too (LLM_3_KEY / _BASE / _MODEL as repo
-          # vars) — add it if you want more headroom.
           LLM_1_KEY: ${{ secrets.LLM_1_KEY }}
           LLM_1_BASE: ${{ vars.LLM_1_BASE || 'https://generativelanguage.googleapis.com/v1beta/openai' }}
           LLM_1_MODEL: ${{ vars.LLM_1_MODEL || 'gemini-3.5-flash,gemini-3.5-flash-lite' }}
@@ -43,5 +55,5 @@ jobs:
           LLM_3_KEY: ${{ secrets.LLM_3_KEY }}
           LLM_3_BASE: ${{ vars.LLM_3_BASE }}
           LLM_3_MODEL: ${{ vars.LLM_3_MODEL }}
-          COUNTRIES: ${{ vars.COUNTRIES || 'bd,in,pk,ng,ph,uk,us,au,ie,sg,my,ca,nz,za,ke,gh,ug,zw,jp,lk,np,jm' }}
+          COUNTRIES: ${{ matrix.countries }}
         run: python -m app.cli ingest

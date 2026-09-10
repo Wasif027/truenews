@@ -447,7 +447,7 @@ def call_llm_json(system: str, user: str, *, timeout: float = 60.0) -> dict:
         log.info("%s (%s) unusable (%s); trying next", model, base, resp.status_code)
 
     if limited >= len(rows):
-        _cooldown_until = time.monotonic() + (900 if quota_hit else 60)
+        _cooldown_until = time.monotonic() + (900 if quota_hit else 180)
     raise RuntimeError("every LLM provider failed for this request")
 
 
@@ -518,7 +518,7 @@ def _llm(items: list[SourceItem]) -> SummaryResult:
     # be no different. Back off so a run doesn't crawl through the whole gauntlet
     # per story (and hold the DB transaction open). Longer for a daily cap.
     if rows and limited >= len(rows):
-        _cooldown_until = time.monotonic() + (900 if quota_hit else 60)
+        _cooldown_until = time.monotonic() + (900 if quota_hit else 180)
         log.info("all providers limited; pausing LLM for %ds", 900 if quota_hit else 60)
     if resp is not None:
         resp.raise_for_status()  # everything failed -> surface the last error
