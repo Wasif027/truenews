@@ -171,24 +171,38 @@ def _effective_outlets(rows: list[tuple[int, str]]) -> int:
     return min(n_heads, len(outlets))
 
 
-def _recompute_counts(session: Session, country: str) -> None:
-    """Make every cluster's counts match actual article membership. Clears the
-    counts of clusters that lost all their articles to a merge, so they drop out
-    of the feed (which filters on article_count > 0). `outlet_count` is the
-    *independent-newsroom* count (see `_effective_outlets`), not raw distinct
-    outlet ids, so syndicated copy doesn't inflate a story to "multi-source"."""
-    members: dict[int, list[tuple[int, str]]] = defaultdict(list)
-    for cid, oid, headline in session.execute(
-        select(Article.cluster_id, Article.outlet_id, Article.headline).where(
-            Article.country == country, Article.cluster_id.is_not(None)
-        )
-    ).all():
-        members[cid].append((oid, headline))
+_RECOUNT_SQL = text(
+    """
+    UPDATE cluster c SET
+        article_count = m.n,
+        outlet_count  = LEAST(COALESCE(NULLIF(m.heads, 0), m.outlets), m.outlets)
+    FROM (
+        SELECT
+            cl.id,
+            COUNT(a.id) AS n,
+            COUNT(DISTINCT a.outlet_id) AS outlets,
+            COUNT(DISTINCT NULLIF(regexp_replace(lower(a.headline), '[^a-z0-9]+', '', 'g'), '')) AS heads
+        FROM cluster cl
+        LEFT JOIN article a ON a.cluster_id = cl.id
+        WHERE cl.country = :c
+        GROUP BY cl.id
+    ) m
+    WHERE c.id = m.id
+      AND (c.article_count IS DISTINCT FROM m.n
+           OR c.outlet_count IS DISTINCT FROM LEAST(COALESCE(NULLIF(m.heads, 0), m.outlets), m.outlets))
+    """
+)
 
-    for cluster in session.exec(select(Cluster).where(Cluster.country == country)).all():
-        rows = members.get(cluster.id, [])
-        cluster.article_count = len(rows)
-        cluster.outlet_count = _effective_outlets(rows)
+
+def _recompute_counts(session: Session, country: str) -> None:
+    """Make every cluster's counts match actual article membership, in one SQL
+    pass (this runs twice per country per ingest — ORM-iterating every cluster
+    was a big chunk of a slow run). Clusters that lost all their articles to a
+    merge get article_count = 0 and drop out of the feed. `outlet_count` is the
+    *independent-newsroom* count: min(distinct normalised headlines, distinct
+    outlets), matching `_effective_outlets`, so syndicated copy doesn't inflate a
+    story to "multi-source". Only rows whose counts actually changed are written."""
+    session.execute(_RECOUNT_SQL, {"c": country})
     session.commit()
 
 
@@ -218,6 +232,19 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
     emb = np.array([r.embedding for r in rows], dtype=np.float32)
     groups = cluster_by_similarity(ids, emb, s.cluster_sim_threshold)
 
+    # Every cluster any windowed article currently belongs to — loaded in one
+    # query, not one `session.get` per group (that was thousands of round trips
+    # for a big country).
+    cand_ids = {r.cluster_id for r in rows if r.cluster_id is not None}
+    cand_by_id: dict[int, Cluster] = {
+        c.id: c
+        for c in (
+            session.exec(select(Cluster).where(Cluster.id.in_(cand_ids)))  # type: ignore[attr-defined]
+            if cand_ids
+            else []
+        )
+    }
+
     # 1. decide: reuse an existing cluster, or mint a new one
     plans: list[list] = []  # [articles, cluster_or_None]
     for group in groups:
@@ -226,7 +253,7 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
         cluster: Cluster | None = None
         if existing_ids:
             dominant, dom_count = Counter(existing_ids).most_common(1)[0]
-            cand = session.get(Cluster, dominant)
+            cand = cand_by_id.get(dominant)
             # Reuse only if this group is a real chunk of that cluster, not a
             # fragment split off an over-merged blob by a stricter threshold.
             if cand and dom_count >= 0.5 * max(cand.article_count, 1):
@@ -241,16 +268,23 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
     for plan, cluster in zip(to_create, created, strict=True):
         plan[1] = cluster
 
-    # 3. fill in cluster fields; collect article membership for one bulk write
+    # 3. fill in cluster fields for the groups whose membership actually changed
+    # (a new cluster, or an article moved in/out). Most groups in the window are
+    # untouched run to run — skipping them is what keeps a big country's run
+    # from redoing thousands of no-op cluster writes and re-summaries every time.
     touched: list[Cluster] = []
     moves: dict[int, list[int]] = defaultdict(list)
     for arts, cluster in plans:
+        movers = [a.id for a in arts if a.cluster_id != cluster.id]
+        is_new = cluster in created
+        if not movers and not is_new:
+            continue
+        for aid in movers:
+            moves[cluster.id].append(aid)
         g_emb = np.array([a.embedding for a in arts], dtype=np.float32)
         central = arts[medoid_index(g_emb)]
         earliest = min(arts, key=lambda a: a.published_at)
         newest = max(a.published_at for a in arts)
-        for a in arts:
-            moves[cluster.id].append(a.id)
         cluster.canonical_title = central.headline
         cluster.category, cluster.category_secondary = _cluster_cats(arts)
         cluster.first_article_id = earliest.id
@@ -273,8 +307,25 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
             )
     session.commit()
     _recompute_counts(session, country)
-    log.info("reclustered window: %d stories touched", len(touched))
+    # Refresh hotness for the whole country in one statement — the time-decay term
+    # moves every run even for stories whose membership didn't change, so the
+    # "hot" sort would otherwise drift stale between the per-group updates above.
+    session.execute(_HOTNESS_SQL, {"c": country})
+    session.commit()
+    log.info("reclustered window: %d stories changed", len(touched))
     return touched
+
+
+_HOTNESS_SQL = text(
+    """
+    UPDATE cluster
+    SET hotness = ROUND(
+        ((outlet_count + ln(1 + article_count))
+         * exp(- GREATEST(0, EXTRACT(EPOCH FROM (now() - updated_at))) / 86400.0))::numeric,
+        4)
+    WHERE country = :c AND article_count > 0
+    """
+)
 
 
 def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
