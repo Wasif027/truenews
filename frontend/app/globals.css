@@ -56,7 +56,9 @@ body {
   font-feature-settings: "kern", "liga", "calt";
 }
 
-/* Faint paper grain: editorial texture, not a filter gimmick. */
+/* Paper grain + a faint top-down vignette — texture instead of a flat fill.
+   The vignette is what a real masthead sits on: slightly denser ink near the
+   top of the page, easing off by the time the feed gets going. */
 body::before {
   content: "";
   position: fixed;
@@ -64,7 +66,9 @@ body::before {
   z-index: 0;
   pointer-events: none;
   opacity: 0.85;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  background-image:
+    linear-gradient(180deg, color-mix(in oklab, var(--fg) 5%, transparent) 0%, transparent 22rem),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
 }
 .dark body::before {
   opacity: 1;
@@ -73,6 +77,13 @@ body::before {
 body > * {
   position: relative;
   z-index: 1;
+}
+
+/* The bar above the nameplate — the one detail every serious masthead has and
+   every template skips. Full-bleed, solid ink, no gradient. */
+.masthead-bar {
+  height: 5px;
+  background: var(--fg);
 }
 
 h1,
@@ -156,9 +167,10 @@ h1.font-display {
   background: var(--pip-off);
 }
 
-/* Classic newspaper double rule */
+/* Classic newspaper double rule — ink-weight, not a pale hairline, so the
+   masthead reads as a section break rather than a faint divider. */
 .rule-double {
-  border-top: 3px double var(--border);
+  border-top: 3px double color-mix(in oklab, var(--fg) 42%, var(--border));
 }
 
 .tabular {

@@ -54,7 +54,7 @@ export function LeadStory({ story }: { story: StoryListItem }) {
       </span>
       <Link
         href={`/story/${story.id}`}
-        className="group panel block px-6 pb-7 pt-5 transition-[border-color,box-shadow] duration-200 hover:border-[var(--accent)] sm:px-8 sm:pt-6"
+        className="group panel block px-6 pb-7 pt-5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-[var(--accent)] hover:shadow-[0_1px_2px_rgba(40,30,18,0.06),0_28px_54px_-22px_rgba(40,30,18,0.32)] sm:px-8 sm:pt-6 dark:hover:shadow-[0_1px_2px_rgba(0,0,0,0.35),0_28px_54px_-22px_rgba(0,0,0,0.7)]"
       >
         <Meta story={story} />
         <div className="mt-3 grid gap-x-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">

@@ -64,9 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <AuthProvider>
+          <div className="masthead-bar" aria-hidden />
           <header className="border-b hairline">
             <div className="mx-auto max-w-6xl px-5">
-              <div className="flex items-start justify-between gap-4 pb-3 pt-7">
+              <div className="flex items-start justify-between gap-4 pb-3 pt-6">
                 <div>
                   <Link
                     href="/"
@@ -80,6 +81,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     style={{ color: "var(--muted)", fontFamily: "var(--font-display), Georgia, serif" }}
                   >
                     How the same story reads from one outlet to the next.
+                  </p>
+                  <p className="kicker mt-1.5 hidden sm:block">
+                    22 countries <span aria-hidden className="opacity-50">&middot;</span> 130+
+                    outlets tracked
                   </p>
                 </div>
                 <HeaderNav />

@@ -129,8 +129,10 @@ function Tab({
   return (
     <button
       onClick={onClick}
-      className="relative pb-1 transition-colors duration-150"
-      style={{ color: active ? "var(--fg)" : "var(--muted)" }}
+      className={`relative pb-1 transition-colors duration-150 ${
+        active ? "" : "text-[var(--muted)] hover:text-[var(--fg-soft)]"
+      }`}
+      style={active ? { color: "var(--fg)" } : undefined}
       aria-pressed={active}
     >
       <span className={active ? "font-medium" : ""}>{label}</span>
