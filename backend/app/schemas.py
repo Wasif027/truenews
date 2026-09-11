@@ -74,7 +74,7 @@ class CompareResultOut(BaseModel):
     consensus_slant: str | None = None
     blind_spots: list[str] = []
     takeaway: str
-    via: str  # "llm" | "offline"
+    via: str  # "llm" | "byok" | "offline"
     sources: list[CompareSourceOut]
     unmatched_leans: list[OutletLeanOut] = []
     failed: list[dict] = []

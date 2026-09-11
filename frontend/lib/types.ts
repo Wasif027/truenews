@@ -64,7 +64,7 @@ export type CompareResult = {
   consensus_slant: string | null;
   blind_spots: string[];
   takeaway: string;
-  via: "llm" | "offline";
+  via: "llm" | "byok" | "offline";
   sources: CompareSource[];
   unmatched_leans: OutletLean[];
   failed: { url: string; reason: string }[];
