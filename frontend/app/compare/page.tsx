@@ -1,53 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { type ByokCreds, CompareError, compareArticles } from "@/lib/api";
+import { useState } from "react";
+import { CompareError, compareArticles } from "@/lib/api";
 import type { CompareResult, OutletLean } from "@/lib/types";
 
 const MAX_URLS = 4;
-const BYOK_STORAGE_KEY = "tn_byok";
 
 export default function ComparePage() {
   const [urls, setUrls] = useState<string[]>(["", ""]);
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [rateLimited, setRateLimited] = useState(false);
   const [failed, setFailed] = useState<{ url: string; reason: string }[] | null>(null);
   const [result, setResult] = useState<CompareResult | null>(null);
-
-  const [byokOpen, setByokOpen] = useState(false);
-  const [byokProvider, setByokProvider] = useState<ByokCreds["provider"]>("gemini");
-  const [byokKey, setByokKey] = useState("");
-
-  // The key never touches our server except inside the one /compare request
-  // that uses it — this is purely the browser remembering it for next time.
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(BYOK_STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as ByokCreds;
-        if (parsed.key) {
-          setByokProvider(parsed.provider);
-          setByokKey(parsed.key);
-          setByokOpen(true);
-        }
-      }
-    } catch {
-      // ignore — private browsing, storage disabled, or garbage in the slot
-    }
-  }, []);
-
-  function saveByok(provider: ByokCreds["provider"], key: string) {
-    setByokProvider(provider);
-    setByokKey(key);
-    try {
-      if (key.trim()) localStorage.setItem(BYOK_STORAGE_KEY, JSON.stringify({ provider, key }));
-      else localStorage.removeItem(BYOK_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-  }
 
   const setUrl = (i: number, v: string) =>
     setUrls((u) => u.map((x, j) => (j === i ? v : x)));
@@ -57,25 +22,20 @@ export default function ComparePage() {
 
   const filled = urls.map((u) => u.trim()).filter(Boolean);
   const canRun = filled.length >= 2 && status === "idle";
-  const byok: ByokCreds | null = byokKey.trim()
-    ? { provider: byokProvider, key: byokKey.trim() }
-    : null;
 
   async function run(e: React.FormEvent) {
     e.preventDefault();
     if (!canRun) return;
     setStatus("loading");
     setError(null);
-    setRateLimited(false);
     setFailed(null);
     setResult(null);
     try {
-      setResult(await compareArticles(filled, byok));
+      setResult(await compareArticles(filled));
     } catch (err) {
       if (err instanceof CompareError) {
         setError(err.message);
         setFailed(err.failed ?? null);
-        setRateLimited(!byok && /rate limit/i.test(err.message));
       } else {
         setError("Something went wrong. Please try again.");
       }
@@ -155,98 +115,6 @@ export default function ComparePage() {
         </div>
       </form>
 
-      <div className="mt-4">
-        <button
-          type="button"
-          onClick={() => setByokOpen((v) => !v)}
-          className="flex items-center gap-1.5 text-xs transition-colors hover:text-[var(--fg)]"
-          style={{ color: byok ? "var(--accent-ink)" : "var(--muted)" }}
-        >
-          <span
-            className="inline-block transition-transform duration-200"
-            style={{ transform: byokOpen ? "rotate(90deg)" : "none" }}
-            aria-hidden
-          >
-            ▸
-          </span>
-          {byok ? "Using your own API key" : "Use your own API key instead"}
-        </button>
-
-        {byokOpen && (
-          <div className="card mt-2.5 rounded-md p-4">
-            <p className="text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
-              Skip the shared hourly limit by using your own free key. It&rsquo;s sent with this
-              request only &mdash; never stored on our server, only saved in this browser so you
-              don&rsquo;t have to paste it again.
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <select
-                value={byokProvider}
-                onChange={(e) => saveByok(e.target.value as ByokCreds["provider"], byokKey)}
-                className="cursor-pointer rounded-md border bg-transparent px-2.5 py-1.5 text-xs font-medium hairline"
-                style={{ color: "var(--fg)" }}
-              >
-                <option value="gemini" style={{ background: "var(--card)" }}>
-                  Google Gemini
-                </option>
-                <option value="groq" style={{ background: "var(--card)" }}>
-                  Groq
-                </option>
-              </select>
-              <input
-                type="password"
-                autoComplete="off"
-                spellCheck={false}
-                value={byokKey}
-                onChange={(e) => saveByok(byokProvider, e.target.value)}
-                placeholder="Paste your API key"
-                className="min-w-0 flex-1 rounded-md border bg-transparent px-2.5 py-1.5 text-xs outline-none transition-colors hairline focus:border-[var(--accent)]"
-                style={{ color: "var(--fg)" }}
-              />
-              {byokKey && (
-                <button
-                  type="button"
-                  onClick={() => saveByok(byokProvider, "")}
-                  className="text-xs transition-colors hover:text-[var(--fg)]"
-                  style={{ color: "var(--muted)" }}
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <p className="mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
-              {byokProvider === "gemini" ? (
-                <>
-                  Get a free key at{" "}
-                  <a
-                    href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline decoration-1 underline-offset-2 hover:text-[var(--fg-soft)]"
-                  >
-                    aistudio.google.com/apikey
-                  </a>
-                  .
-                </>
-              ) : (
-                <>
-                  Get a free key at{" "}
-                  <a
-                    href="https://console.groq.com/keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline decoration-1 underline-offset-2 hover:text-[var(--fg-soft)]"
-                  >
-                    console.groq.com/keys
-                  </a>
-                  .
-                </>
-              )}
-            </p>
-          </div>
-        )}
-      </div>
-
       {status === "loading" && (
         <p
           className="mt-6 flex items-center gap-2 text-sm"
@@ -267,18 +135,6 @@ export default function ComparePage() {
           style={{ borderColor: "var(--accent)", color: "var(--fg-soft)" }}
         >
           {error}
-          {rateLimited && (
-            <p className="mt-2">
-              <button
-                type="button"
-                onClick={() => setByokOpen(true)}
-                className="text-xs underline decoration-1 underline-offset-2"
-                style={{ color: "var(--accent-ink)" }}
-              >
-                Use your own API key to skip this limit
-              </button>
-            </p>
-          )}
           {failed && failed.length > 0 && (
             <ul className="mt-2 space-y-1 text-xs" style={{ color: "var(--muted)" }}>
               {failed.map((f) => (
@@ -328,11 +184,6 @@ function Result({ data }: { data: CompareResult }) {
         >
           The comparison model is busy right now, so this is a plain word-level read only. Try
           again shortly for the full side-by-side.
-        </p>
-      )}
-      {data.via === "byok" && (
-        <p className="text-xs" style={{ color: "var(--muted)" }}>
-          Compared using your own API key.
         </p>
       )}
 

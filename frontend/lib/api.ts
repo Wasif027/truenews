@@ -120,19 +120,11 @@ export class CompareError extends Error {
   }
 }
 
-export type ByokCreds = { provider: "gemini" | "groq"; key: string };
-
-export async function compareArticles(
-  urls: string[],
-  byok?: ByokCreds | null,
-): Promise<CompareResult> {
+export async function compareArticles(urls: string[]): Promise<CompareResult> {
   const res = await fetch(resolve("/api/compare"), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      urls,
-      ...(byok ? { llm_provider: byok.provider, llm_key: byok.key } : {}),
-    }),
+    body: JSON.stringify({ urls }),
   });
   if (res.ok) return res.json() as Promise<CompareResult>;
 

@@ -13,7 +13,7 @@ import logging
 from dataclasses import dataclass, field
 
 from app.services.loaded_language import flag_text
-from app.services.summarize import BYOKError, call_llm_json, call_llm_json_with
+from app.services.summarize import call_llm_json
 
 log = logging.getLogger("truenews.compare")
 
@@ -97,7 +97,7 @@ class CompareResult:
     consensus_slant: str | None
     blind_spots: list[str]
     takeaway: str
-    via: str  # "llm" | "byok" | "offline"
+    via: str  # "llm" | "offline"
 
 
 def _clean_list(value: object, limit: int) -> list[str]:
@@ -116,27 +116,13 @@ def _as_text(value: object) -> str:
     return str(value or "").strip()
 
 
-def _user_message(items: list[CompareInput]) -> str:
-    return "\n\n".join(
+def _llm_compare(items: list[CompareInput]) -> CompareResult:
+    user = "\n\n".join(
         f"OUTLET: {it.outlet}\nHEADLINE: {it.title}\nARTICLE: {it.text[:3000]}"
         for it in items
     )
+    data = call_llm_json(_SYSTEM, user, timeout=50.0)
 
-
-def _llm_compare(items: list[CompareInput]) -> CompareResult:
-    data = call_llm_json(_SYSTEM, _user_message(items), timeout=50.0)
-    return _parse(data, items, via="llm")
-
-
-def _llm_compare_byok(items: list[CompareInput], provider: str, api_key: str) -> CompareResult:
-    """Same prompt, but run against the visitor's own key — never the shared
-    pool, and a bad key is a BYOKError (the caller should say so plainly, not
-    quietly fall back to a shared-pool result that has nothing to do with it)."""
-    data = call_llm_json_with(provider, api_key, _SYSTEM, _user_message(items), timeout=50.0)
-    return _parse(data, items, via="byok")
-
-
-def _parse(data: dict, items: list[CompareInput], *, via: str) -> CompareResult:
     by_name = {it.outlet.lower(): it for it in items}
     leans: list[OutletLean] = []
     for raw in data.get("outlets") or []:
@@ -175,7 +161,7 @@ def _parse(data: dict, items: list[CompareInput], *, via: str) -> CompareResult:
         consensus_slant=consensus or None,
         blind_spots=_clean_list(data.get("blind_spots"), 4),
         takeaway=_as_text(data.get("takeaway")),
-        via=via,
+        via="llm",
     )
 
 
@@ -243,25 +229,10 @@ def _offline_compare(items: list[CompareInput]) -> CompareResult:
     )
 
 
-def compare_sources(
-    items: list[CompareInput], *, byok: tuple[str, str] | None = None
-) -> CompareResult:
-    """`byok` = (provider, api_key) when the visitor supplied their own key —
-    used for this call only, never logged, never persisted, and kept off the
-    shared provider chain entirely."""
+def compare_sources(items: list[CompareInput]) -> CompareResult:
     usable = [it for it in items if it.text and len(it.text) > 200]
     if len(usable) < 2:
         raise ValueError("need at least two articles with readable body text")
-
-    if byok:
-        provider, api_key = byok
-        try:
-            return _llm_compare_byok(usable, provider, api_key)
-        except BYOKError:
-            raise
-        except (RuntimeError, KeyError, ValueError, TypeError) as exc:
-            raise BYOKError(f"that key didn't return a usable response ({exc})") from exc
-
     try:
         return _llm_compare(usable)
     except (RuntimeError, KeyError, ValueError, TypeError) as exc:

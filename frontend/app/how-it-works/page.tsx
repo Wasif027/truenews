@@ -57,10 +57,7 @@ export default function HowItWorks() {
           instead of calling the least slanted one &ldquo;neutral&rdquo;. Every lean label comes
           with the quotes from that article it rests on. It describes one story as told by one
           outlet on one day, not a standing verdict on the outlet, and the fetched text is dropped
-          as soon as the comparison is written. Comparisons draw on a shared free-tier model, so
-          there&rsquo;s an hourly limit &mdash; Compare also has a &ldquo;use your own API
-          key&rdquo; option that runs on your own account instead, kept only in your browser and
-          sent for that one request.
+          as soon as the comparison is written.
         </Section>
 
         <Section title="“4 of 8 outlets covered this”">
