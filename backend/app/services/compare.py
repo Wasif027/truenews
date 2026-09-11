@@ -107,6 +107,15 @@ def _clean_list(value: object, limit: int) -> list[str]:
     return out[:limit]
 
 
+def _as_text(value: object) -> str:
+    """The model is asked for a prose string but occasionally hands back a list
+    of sentences instead — join those into a paragraph rather than `str()`ing
+    the list and leaking Python repr syntax into the page."""
+    if isinstance(value, list):
+        return " ".join(s.strip() for s in value if isinstance(s, str) and s.strip())
+    return str(value or "").strip()
+
+
 def _user_message(items: list[CompareInput]) -> str:
     return "\n\n".join(
         f"OUTLET: {it.outlet}\nHEADLINE: {it.title}\nARTICLE: {it.text[:3000]}"
@@ -141,31 +150,31 @@ def _parse(data: dict, items: list[CompareInput], *, via: str) -> CompareResult:
         leans.append(
             OutletLean(
                 outlet=name,
-                lean=str(raw.get("lean") or "Unclear").strip(),
+                lean=_as_text(raw.get("lean")) or "Unclear",
                 confidence=conf if conf in _CONF else "low",
                 evidence=_clean_list(raw.get("evidence"), 4),
                 loaded_language=[f.text for f in flag_text(src.text)][:4] if src else [],
             )
         )
 
-    summary = str(data.get("shared_facts") or "").strip()
+    summary = _as_text(data.get("shared_facts"))
     if not summary or not leans:
         raise RuntimeError("model response missing required fields")
 
     relation = str(data.get("relation") or "").strip()
     if relation not in _RELATIONS:
         relation = "related"
-    consensus = str(data.get("consensus_slant") or "").strip()
+    consensus = _as_text(data.get("consensus_slant"))
     return CompareResult(
         relation=relation,
-        relation_note=str(data.get("relation_note") or "").strip() or None,
+        relation_note=_as_text(data.get("relation_note")) or None,
         shared_facts=summary,
         agreements=_clean_list(data.get("agreements"), 5),
         differences=_clean_list(data.get("differences"), 6),
         outlets=leans,
         consensus_slant=consensus or None,
         blind_spots=_clean_list(data.get("blind_spots"), 4),
-        takeaway=str(data.get("takeaway") or "").strip(),
+        takeaway=_as_text(data.get("takeaway")),
         via=via,
     )
 
