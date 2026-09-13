@@ -6,6 +6,7 @@ import re
 import time
 from collections import Counter
 from dataclasses import dataclass
+from datetime import UTC, datetime
 
 import httpx
 
@@ -36,6 +37,10 @@ _LEAD_JUNK = re.compile(
     r"district-?wise\s*toll)\b.*$",
     re.IGNORECASE | re.DOTALL,
 )
+# A wire-service dateline prefix ("NEW YORK, Sept 12, 2026 (AFP) - ") reads fine
+# inline in a wire story but looks like raw scraper leakage once it's the first
+# thing on the page — strip it before the lead is used in a summary.
+_WIRE_DATELINE = re.compile(r"^[A-Z][A-Z .]{1,30},\s*[^()]{0,30}\([A-Za-z./]{2,15}\)\s*-\s*")
 
 # Verbs/nouns that editorialise — a headline using one is taking an angle.
 _CHARGED = (
@@ -116,6 +121,7 @@ class SourceItem:
     headline: str
     lead: str
     body: str = ""  # full article text when available (LLM path only, never stored)
+    published_at: str = ""  # ISO date this outlet's article went out, e.g. "2026-09-13"
 
 
 @dataclass
@@ -133,14 +139,27 @@ _CATEGORY_SLUGS = (
 )
 
 _SYSTEM = (
-    "You compare how different news outlets cover the same event. For each outlet "
-    "you are given its headline and either its full article text or, when that "
-    "could not be fetched, its opening paragraph. Return STRICT JSON: "
+    "You compare how different news outlets cover the same event. You are told today's "
+    "actual date and, for each outlet, the date its article was published, its headline, "
+    "and either its full article text or, when that could not be fetched, its opening "
+    "paragraph. Return STRICT JSON: "
     '{"summary": str, "coverage_diff": str, "coverage_detail": str, "categories": [str]}. '
+    "Dates: use the given publication dates as ground truth for when each account was "
+    "written; never state or imply a year, month or day that isn't directly supported by "
+    "them or by an explicit date in the article text — do not guess a year from habit or "
+    "from your own training data. If the articles span several days of one still-unfolding "
+    "situation (an evolving death toll, a multi-stage sports run, a figure that changed), "
+    "the summary must describe the LATEST reported state first and treat earlier states as "
+    "what led to it, never the reverse, and never present an earlier and a later state as "
+    "if both were still current. "
     "summary: 4-6 neutral sentences covering what happened, who is involved, where and when, "
     "and any figures or consequences reported. Use only facts present in the inputs. "
     "coverage_diff: 1-3 sentences, the single biggest way the coverage differs - framing, a "
-    "differing number, or a fact one outlet leads with and others omit. Empty string if uniform. "
+    "differing number, or a fact one outlet leads with and others omit. Before calling two "
+    "figures a disagreement, check their dates: if the later-dated article's number is "
+    "consistent with an update to the earlier one (a rising death toll, a revised count), say "
+    "so as an update ('X had risen to N by DATE'), not a contradiction between outlets. Empty "
+    "string if uniform. "
     "coverage_detail: 4-7 sentences walking through how the individual outlets handled it, "
     "naming them - who led with what, who emphasised or buried which angle, who included a "
     "detail or quote the others omitted, whose wording is sharpest. Prefer differences that "
@@ -164,6 +183,7 @@ def _clean_lead(text: str) -> str:
     t = re.sub(r"([a-z0-9)\]\"'”’])([.!?])([A-Z\"'“‘(])", r"\1\2 \3", t)
     t = re.sub(r"(\d)([A-Z][a-z])", r"\1 \2", t)  # "2026Ramon" -> "2026 Ramon"
     t = _LEAD_JUNK.sub("", t).strip()
+    t = _WIRE_DATELINE.sub("", t).strip()
     return t
 
 
@@ -455,8 +475,9 @@ def _llm(items: list[SourceItem]) -> SummaryResult:
     global _last_call, _cooldown_until
     if time.monotonic() < _cooldown_until:
         raise RuntimeError("LLM cooling down after rate limits")
-    body = "\n\n".join(
-        f"OUTLET: {it.outlet}\nHEADLINE: {it.headline}\n"
+    today = datetime.now(UTC).date().isoformat()
+    body = f"TODAY: {today}\n\n" + "\n\n".join(
+        f"OUTLET: {it.outlet}\nPUBLISHED: {it.published_at or 'unknown'}\nHEADLINE: {it.headline}\n"
         + (f"ARTICLE: {it.body[:700]}" if it.body else f"OPENING: {it.lead}")
         for it in items[:4]
     )

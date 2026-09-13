@@ -44,7 +44,10 @@ export default function HowItWorks() {
           walk-through of how each outlet handled it: who led with what, who emphasised or
           buried an angle, who included a quote the others dropped. To write that, TrueNews
           reads each outlet&rsquo;s full article once, uses it, and discards it &mdash; the full
-          text is never stored. Nothing is invented, and it never says which outlet got it right.
+          text is never stored. It never says which outlet got it right. That said, it&rsquo;s a
+          generative model summarising fast-moving coverage &mdash; treat it as a well-informed
+          starting point, not a verified transcript, and check the original articles below for
+          anything you plan to rely on.
         </Section>
 
         <Section title="Compare (when you paste your own links)">

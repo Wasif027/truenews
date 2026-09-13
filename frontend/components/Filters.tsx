@@ -94,7 +94,7 @@ export function Filters({ categories }: { categories: CategoryCount[] }) {
           onClick={() => apply({ sort: sort === "hot" ? "new" : "hot" })}
           className="transition-colors hover:text-[var(--fg)]"
         >
-          {sort === "hot" ? "Sorted by pickup" : "Sorted by time"}
+          {sort === "hot" ? "Sorted by most covered" : "Sorted by newest"}
         </button>
         <label className="flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[var(--fg)]">
           <input

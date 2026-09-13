@@ -18,7 +18,7 @@ from app.ingest.sources import sources_for
 from app.models import Article, Cluster, FlaggedSentence, Outlet, utcnow
 from app.services import extract
 from app.services.categorize import categorize
-from app.services.clustering import cluster_by_similarity, medoid_index
+from app.services.clustering import cluster_by_similarity
 from app.services.embeddings import embed_texts
 from app.services.loaded_language import flag_text
 from app.services.summarize import SourceItem, summarise
@@ -295,11 +295,15 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
             continue
         for aid in movers:
             moves[cluster.id].append(aid)
-        g_emb = np.array([a.embedding for a in arts], dtype=np.float32)
-        central = arts[medoid_index(g_emb)]
         earliest = min(arts, key=lambda a: a.published_at)
-        newest = max(a.published_at for a in arts)
-        cluster.canonical_title = central.headline
+        newest_art = max(arts, key=lambda a: a.published_at)
+        newest = newest_art.published_at
+        # The most recent headline, not the embedding-medoid one: a story that's
+        # moved on (semifinal -> final, unit down -> unit back up) should show
+        # its current state, not whichever headline reads as most "typical" of
+        # the whole run. The medoid picked the earliest framing about as often
+        # as any other, which is exactly backwards for a live story.
+        cluster.canonical_title = newest_art.headline
         cluster.category, cluster.category_secondary = _cluster_cats(arts)
         cluster.first_article_id = earliest.id
         cluster.hotness = _hotness(
@@ -363,12 +367,20 @@ def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
                 chosen[a.outlet_id] = a
         return list(chosen.values())
 
+    def _signature(arts: list[Article]) -> str:
+        # Outlet set AND article count: an outlet that already contributed
+        # publishing a follow-up (a new development, an updated figure) must
+        # still trigger a fresh summary — checking only the outlet set let a
+        # story's summary go stale the moment every outlet had posted once,
+        # even as those same outlets kept filing updates on an evolving story.
+        outlets = ",".join(map(str, sorted({a.outlet_id for a in arts})))
+        return f"{outlets}|{len(arts)}"
+
     def _needs_summary(c: Cluster) -> bool:
         arts = arts_by_cluster.get(c.id, [])
         if not arts:
             return False
-        sig = ",".join(map(str, sorted({a.outlet_id for a in arts})))
-        return not (c.summary and c.summarised_outlet_ids == sig)
+        return not (c.summary and c.summarised_outlet_ids == _signature(arts))
 
     todo = [c for c in ranked if _needs_summary(c)]
     have_key = bool(get_settings().llm_providers)
@@ -391,7 +403,7 @@ def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
     soft_fails = 0  # clusters we wanted on the model but got the offline path
     for cluster in todo:
         arts = arts_by_cluster[cluster.id]
-        signature = ",".join(map(str, sorted({a.outlet_id for a in arts})))
+        signature = _signature(arts)
         # Once the model has fallen back a few times in a row it's rate/quota
         # limited for the rest of this run — stop asking, or a full shard spends
         # its time cycling 429s. A later run retries the "~"-marked stories.
@@ -409,6 +421,7 @@ def _summarise_clusters(session: Session, clusters: list[Cluster]) -> None:
                 lead=a.lead_text,
                 # ~900 chars ≈ the first few paragraphs — enough to see framing.
                 body=extract.article_text(a.url)[:900] if use_llm else "",
+                published_at=a.published_at.date().isoformat(),
             )
             for a in picked
         ]

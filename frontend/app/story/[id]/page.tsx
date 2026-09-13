@@ -170,9 +170,14 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
 
       {story.coverage.not_reporting.length > 0 && (
         <section className="mt-9">
-          <SectionLabel>Not reporting this</SectionLabel>
+          <SectionLabel>No matching coverage found</SectionLabel>
           <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
             {story.coverage.not_reporting.join(" · ")}
+          </p>
+          <p className="mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
+            No article from these tracked outlets matched this story in the current window &mdash;
+            they may have covered it outside the feeds TrueNews reads, or under wording the
+            clustering didn&rsquo;t match.
           </p>
         </section>
       )}
