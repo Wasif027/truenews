@@ -8,10 +8,11 @@ left out — written from the full article text, which is used and then discarde
 every outlet's own headline in order of publication, a coverage/blindspot
 indicator, and links out to every original article.
 
-**Countries:** 22 — Bangladesh, India, Pakistan, Nigeria, Philippines, UK, USA,
-Australia, Ireland, Singapore, Malaysia, Canada, New Zealand, South Africa, Kenya,
-Ghana, Uganda, Zimbabwe, Japan, Sri Lanka, Nepal, Jamaica (~130 outlets),
-switchable in the header. Each is a config entry in
+**Countries:** 11 — Bangladesh, India, Pakistan, UK, USA, Australia, Ireland,
+Singapore, Malaysia, Canada, Japan (~78 outlets), switchable in the header.
+Trimmed from 22 on 2026-09-13 — quality over quantity, and fewer countries
+means less load on the shared LLM quota and the database per ingest cycle.
+Each is a config entry in
 `backend/app/ingest/sources.py` plus its code in the `COUNTRIES` env var. The bar
 for adding a country is at least three outlets with a working, current
 English-language RSS feed.
@@ -135,7 +136,7 @@ summaries after editing them), `verify-feeds`.
 
 ## Status vs SPEC
 
-Done: 22-country ingestion + switcher, embedding clustering with near-duplicate
+Done: 11-country ingestion + switcher, embedding clustering with near-duplicate
 (wire-copy / syndication) collapsing, two-category zero-shot categorisation, LLM
 summary + full per-outlet coverage comparison (offline fallback), multi-select
 category filter with counts that track the single-source toggle, search,

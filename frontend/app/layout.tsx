@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     template: "%s · TrueNews",
   },
   description:
-    "A news reader that groups articles about the same event and shows how the same story reads from one outlet to the next, across 22 countries.",
+    "A news reader that groups articles about the same event and shows how the same story reads from one outlet to the next, across 11 countries.",
   icons: { icon: "/icon.svg" },
   openGraph: {
     title: "TrueNews · how the press covers the same stories",
@@ -83,7 +83,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     How the same story reads from one outlet to the next.
                   </p>
                   <p className="kicker mt-1.5 hidden sm:block">
-                    22 countries <span aria-hidden className="opacity-50">&middot;</span> 130+
+                    11 countries <span aria-hidden className="opacity-50">&middot;</span> 75+
                     outlets tracked
                   </p>
                 </div>

@@ -19,6 +19,9 @@ jobs:
     # got cancelled, so only the first few ever refreshed. Now the countries are
     # split into shards that run in parallel — this repo is public, so GitHub
     # gives unlimited concurrent Actions minutes. India is heaviest, on its own.
+    # Cut from 22 to 11 countries on 2026-09-13 (quality over quantity, less
+    # load on the shared LLM quota and the database) — 4 shards is now plenty;
+    # more would just mean more concurrent connections to Supabase for no gain.
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -26,11 +29,8 @@ jobs:
         countries:
           - "in"
           - "bd,pk"
-          - "ng,uk,us"
-          - "ph,au,ie,sg"
-          - "my,ca,nz,za"
-          - "ke,gh,ug,zw"
-          - "jp,lk,np,jm"
+          - "uk,us"
+          - "au,ie,sg,my,ca,jp"
     defaults:
       run:
         working-directory: backend

@@ -42,7 +42,7 @@ export default function OG() {
           </div>
           <div style={{ display: "flex", fontSize: 40, color: "#494339", lineHeight: 1.3, maxWidth: 940 }}>
             How the same story reads from one outlet to the next: grouped by event, compared
-            across outlets, in 22 countries.
+            across outlets, in 11 countries.
           </div>
         </div>
 

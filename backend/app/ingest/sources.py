@@ -9,13 +9,19 @@ de-duplicated by article URL. RSS URLs drift and outlets go behind bot
 protection — run `python -m app.cli verify-feeds` after editing, and treat any
 feed as allowed to fail at runtime (the pipeline logs and skips).
 
-Verified working & fresh as of 2026-09 (22 countries). Some outlets are known to
+Verified working & fresh as of 2026-09 (11 countries). Some outlets are known to
 be flaky from certain IPs (Cloudflare/WAF 403s) but work from others — the
 pipeline logs and skips a feed that fails, so a borderline one is left in rather
 than dropped. Excluded for good: bdnews24 / Daily Sun (Cloudflare 403), UAE
 press (no working English feed found — The National + Arabian Business only,
 short of the 3-source bar). Google News per-site RSS gives obfuscated redirect
 links that break "read at source", so it's never used.
+
+Cut back from 22 to 11 countries on 2026-09-13 — quality over quantity, and
+fewer countries means less load on the shared LLM quota and the database per
+ingest cycle. Dropped: Nigeria, Philippines, New Zealand, South Africa, Kenya,
+Ghana, Uganda, Zimbabwe, Sri Lanka, Nepal, Jamaica — not because their coverage
+was worse, purely to concentrate the free-tier budget on fewer, fresher feeds.
 """
 
 from __future__ import annotations
@@ -35,8 +41,6 @@ COUNTRIES: dict[str, str] = {
     "bd": "Bangladesh",
     "in": "India",
     "pk": "Pakistan",
-    "ng": "Nigeria",
-    "ph": "Philippines",
     "uk": "United Kingdom",
     "us": "United States",
     "au": "Australia",
@@ -44,16 +48,7 @@ COUNTRIES: dict[str, str] = {
     "sg": "Singapore",
     "my": "Malaysia",
     "ca": "Canada",
-    "nz": "New Zealand",
-    "za": "South Africa",
-    "ke": "Kenya",
-    "gh": "Ghana",
-    "ug": "Uganda",
-    "zw": "Zimbabwe",
     "jp": "Japan",
-    "lk": "Sri Lanka",
-    "np": "Nepal",
-    "jm": "Jamaica",
 }
 
 SOURCES: dict[str, list[SourceConfig]] = {
@@ -209,59 +204,6 @@ SOURCES: dict[str, list[SourceConfig]] = {
         SourceConfig("ary-news", "ARY News", "https://arynews.tv",
                      ("https://arynews.tv/feed/",)),
     ],
-    "ng": [
-        SourceConfig("premium-times", "Premium Times", "https://www.premiumtimesng.com",
-                     ("https://www.premiumtimesng.com/feed",)),
-        SourceConfig("daily-post-ng", "Daily Post", "https://dailypost.ng",
-                     ("https://dailypost.ng/feed/",)),
-        SourceConfig("channels-tv", "Channels Television", "https://www.channelstv.com",
-                     ("https://www.channelstv.com/feed/",)),
-        SourceConfig("tribune-ng", "Nigerian Tribune", "https://tribuneonlineng.com",
-                     ("https://tribuneonlineng.com/feed/",)),
-        SourceConfig("leadership-ng", "Leadership", "https://leadership.ng",
-                     ("https://leadership.ng/feed/",)),
-        SourceConfig("nairametrics", "Nairametrics", "https://nairametrics.com",
-                     ("https://nairametrics.com/feed/",)),
-        SourceConfig("vanguard-ng", "Vanguard", "https://www.vanguardngr.com",
-                     ("https://www.vanguardngr.com/feed/",)),
-        SourceConfig("thisday", "This Day", "https://www.thisdaylive.com",
-                     ("https://www.thisdaylive.com/index.php/feed/",)),
-        SourceConfig("daily-trust", "Daily Trust", "https://dailytrust.com",
-                     ("https://dailytrust.com/feed/",)),
-        SourceConfig("businessday-ng", "BusinessDay", "https://businessday.ng",
-                     ("https://businessday.ng/feed/",)),
-        SourceConfig("sahara-reporters", "Sahara Reporters", "https://saharareporters.com",
-                     ("https://saharareporters.com/rss.xml",)),
-    ],
-    "ph": [
-        SourceConfig(
-            "inquirer", "Philippine Daily Inquirer", "https://www.inquirer.net",
-            (
-                "https://newsinfo.inquirer.net/feed",
-                "https://globalnation.inquirer.net/feed",
-                "https://business.inquirer.net/feed",
-            ),
-        ),
-        SourceConfig(
-            "philstar", "The Philippine Star", "https://www.philstar.com",
-            (
-                "https://www.philstar.com/rss/headlines",
-                "https://www.philstar.com/rss/nation",
-                "https://www.philstar.com/rss/world",
-                "https://www.philstar.com/rss/business",
-            ),
-        ),
-        SourceConfig("rappler", "Rappler", "https://www.rappler.com",
-                     ("https://data.rappler.com/feed/",)),
-        SourceConfig("manila-times", "The Manila Times", "https://www.manilatimes.net",
-                     ("https://www.manilatimes.net/news/feed/",)),
-        SourceConfig("mindanews", "MindaNews", "https://mindanews.com",
-                     ("https://mindanews.com/feed/",)),
-        SourceConfig("businessworld-ph", "BusinessWorld", "https://www.bworldonline.com",
-                     ("https://www.bworldonline.com/feed/",)),
-        SourceConfig("interaksyon", "Interaksyon", "https://interaksyon.philstar.com",
-                     ("https://interaksyon.philstar.com/feed/",)),
-    ],
     "uk": [
         SourceConfig("bbc", "BBC News", "https://www.bbc.co.uk/news",
                      ("https://feeds.bbci.co.uk/news/rss.xml",)),
@@ -388,70 +330,6 @@ SOURCES: dict[str, list[SourceConfig]] = {
         SourceConfig("toronto-sun", "Toronto Sun", "https://torontosun.com",
                      ("https://torontosun.com/feed",)),
     ],
-    "nz": [
-        SourceConfig("nz-herald", "The New Zealand Herald", "https://www.nzherald.co.nz",
-                     ("https://www.nzherald.co.nz/arc/outboundfeeds/rss/section/nz/?outputType=xml",)),
-        SourceConfig("stuff-nz", "Stuff", "https://www.stuff.co.nz",
-                     ("https://www.stuff.co.nz/rss",)),
-        SourceConfig("newsroom-nz", "Newsroom", "https://www.newsroom.co.nz",
-                     ("https://www.newsroom.co.nz/feed",)),
-        SourceConfig("rnz", "RNZ", "https://www.rnz.co.nz",
-                     ("https://www.rnz.co.nz/rss/national.xml",)),
-    ],
-    "za": [
-        SourceConfig("iol", "IOL", "https://www.iol.co.za",
-                     ("https://www.iol.co.za/rss",)),
-        SourceConfig("sabc-news", "SABC News", "https://www.sabcnews.com",
-                     ("https://www.sabcnews.com/sabcnews/feed/",)),
-        SourceConfig("daily-maverick", "Daily Maverick", "https://www.dailymaverick.co.za",
-                     ("https://www.dailymaverick.co.za/dmrss/",)),
-        SourceConfig("moneyweb", "Moneyweb", "https://www.moneyweb.co.za",
-                     ("https://www.moneyweb.co.za/feed/",)),
-        SourceConfig("news24", "News24", "https://www.news24.com",
-                     ("https://www.news24.com/news24/rss",)),
-    ],
-    "ke": [
-        SourceConfig("standard-ke", "The Standard", "https://www.standardmedia.co.ke",
-                     ("https://www.standardmedia.co.ke/rss/headlines.php",)),
-        SourceConfig("capital-fm-ke", "Capital FM", "https://www.capitalfm.co.ke",
-                     ("https://www.capitalfm.co.ke/news/feed/",)),
-        SourceConfig("tuko", "Tuko", "https://www.tuko.co.ke",
-                     ("https://www.tuko.co.ke/rss/all.rss",)),
-        SourceConfig("nation-ke", "Nation", "https://nation.africa",
-                     ("https://www.nation.co.ke/kenya/rss",)),
-    ],
-    "gh": [
-        SourceConfig("myjoyonline", "MyJoyOnline", "https://www.myjoyonline.com",
-                     ("https://www.myjoyonline.com/feed/",)),
-        SourceConfig("3news-gh", "3News", "https://3news.com",
-                     ("https://3news.com/feed/",)),
-        SourceConfig("adomonline", "Adom Online", "https://www.adomonline.com",
-                     ("https://www.adomonline.com/feed/",)),
-        SourceConfig("starrfm-gh", "Starr FM", "https://starrfm.com.gh",
-                     ("https://starrfm.com.gh/feed/",)),
-    ],
-    "ug": [
-        SourceConfig("nile-post", "Nile Post", "https://nilepost.co.ug",
-                     ("https://nilepost.co.ug/feed",)),
-        SourceConfig("independent-ug", "The Independent", "https://www.independent.co.ug",
-                     ("https://www.independent.co.ug/feed/",)),
-        SourceConfig("pml-daily", "PML Daily", "https://pmldaily.com",
-                     ("https://pmldaily.com/feed",)),
-        SourceConfig("observer-ug", "The Observer", "https://observer.ug",
-                     ("https://observer.ug/rss",)),
-        SourceConfig("softpower-ug", "SoftPower News", "https://www.softpower.ug",
-                     ("https://www.softpower.ug/feed/",)),
-    ],
-    "zw": [
-        SourceConfig("newsday-zw", "NewsDay", "https://www.newsday.co.zw",
-                     ("https://www.newsday.co.zw/feed",)),
-        SourceConfig("newzimbabwe", "New Zimbabwe", "https://www.newzimbabwe.com",
-                     ("https://www.newzimbabwe.com/feed/",)),
-        SourceConfig("zimeye", "ZimEye", "https://www.zimeye.net",
-                     ("https://www.zimeye.net/feed/",)),
-        SourceConfig("263chat", "263Chat", "https://www.263chat.com",
-                     ("https://263chat.com/feed/",)),
-    ],
     "jp": [
         SourceConfig("japan-times", "The Japan Times", "https://www.japantimes.co.jp",
                      ("https://www.japantimes.co.jp/feed/",)),
@@ -461,32 +339,6 @@ SOURCES: dict[str, list[SourceConfig]] = {
                      ("https://japantoday.com/feed",)),
         SourceConfig("nhk-world", "NHK World-Japan", "https://www3.nhk.or.jp/nhkworld/en/news",
                      ("https://www3.nhk.or.jp/nhkworld/en/news/feeds/all.xml",)),
-    ],
-    "lk": [
-        SourceConfig("ada-derana", "Ada Derana", "https://www.adaderana.lk",
-                     ("https://www.adaderana.lk/rss.php",)),
-        SourceConfig("the-island-lk", "The Island", "https://island.lk",
-                     ("https://island.lk/feed/",)),
-        SourceConfig("economynext", "EconomyNext", "https://economynext.com",
-                     ("https://economynext.com/feed",)),
-        SourceConfig("newswire-lk", "NewsWire", "https://www.newswire.lk",
-                     ("https://www.newswire.lk/feed/",)),
-    ],
-    "np": [
-        SourceConfig("kathmandu-post", "The Kathmandu Post", "https://kathmandupost.com",
-                     ("https://kathmandupost.com/rss",)),
-        SourceConfig("online-khabar-en", "Online Khabar", "https://english.onlinekhabar.com",
-                     ("https://english.onlinekhabar.com/feed",)),
-        SourceConfig("nepali-times", "Nepali Times", "https://www.nepalitimes.com",
-                     ("https://www.nepalitimes.com/feed",)),
-    ],
-    "jm": [
-        SourceConfig("jamaica-gleaner", "Jamaica Gleaner", "https://jamaica-gleaner.com",
-                     ("https://jamaica-gleaner.com/feed/rss.xml",)),
-        SourceConfig("jamaica-observer", "Jamaica Observer", "https://www.jamaicaobserver.com",
-                     ("https://www.jamaicaobserver.com/feed/",)),
-        SourceConfig("nationwide-jm", "Nationwide News Network", "https://nationwideradiojm.com",
-                     ("https://nationwideradiojm.com/feed/",)),
     ],
 }
 

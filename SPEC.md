@@ -1,11 +1,13 @@
 # TrueNews — v1 Spec
 
 > This is the **original planning spec**, kept as a record of the intended scope
-> and the reasoning behind it. The build moved on in places — 22 countries not
-> one, ~130 outlets not ~10, username/password auth not OAuth, an hourly cron,
-> full-article-text comparison. The [README](README.md) is the source of truth for
-> what actually shipped; its "Status vs SPEC" section lists the deltas. The
-> "Implementation notes" at the bottom of this file were added during the build.
+> and the reasoning behind it. The build moved on in places — 11 countries not
+> one (it peaked at 22, then got trimmed back for quality over quantity and to
+> keep load on the shared LLM quota and the database down), ~78 outlets not
+> ~10, username/password auth not OAuth, an hourly cron, full-article-text
+> comparison. The [README](README.md) is the source of truth for what actually
+> shipped; its "Status vs SPEC" section lists the deltas. The "Implementation
+> notes" at the bottom of this file were added during the build.
 
 ## What it is
 
