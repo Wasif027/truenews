@@ -88,7 +88,7 @@ export function HeaderNav() {
         ) : (
           <Link
             href="/login"
-            className="font-medium transition-colors hover:opacity-80"
+            className="whitespace-nowrap font-medium transition-colors hover:opacity-80"
             style={{ color: "var(--accent)" }}
           >
             Log in
