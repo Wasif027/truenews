@@ -108,7 +108,7 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
         </section>
       )}
 
-      {(story.coverage_detail || story.coverage_diff) && story.sources.length >= 2 && (
+      {story.coverage_detail && story.sources.length >= 2 && (
         <section className="mt-10">
           <div
             className="panel overflow-hidden px-6 py-6 sm:px-8 sm:py-7"
@@ -117,15 +117,8 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
             <span className="kicker" style={{ color: "var(--accent-ink)" }}>
               How the coverage differs
             </span>
-            <p
-              className={
-                story.coverage_detail
-                  ? "mt-3 text-[1.02rem] leading-[1.72]"
-                  : "font-display mt-3 text-[1.15rem] italic leading-[1.55]"
-              }
-              style={{ color: "var(--fg)" }}
-            >
-              {story.coverage_detail || story.coverage_diff}
+            <p className="mt-3 text-[1.02rem] leading-[1.72]" style={{ color: "var(--fg)" }}>
+              {story.coverage_detail}
             </p>
           </div>
         </section>

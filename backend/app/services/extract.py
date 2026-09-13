@@ -38,7 +38,11 @@ _BOILERPLATE = re.compile(
 _cache: dict[str, str] = {}
 
 
-def _extract(html: str) -> str:
+def _extract(html: bytes) -> str:
+    # Bytes, not a pre-decoded str: lxml sniffs the page's own <meta charset>,
+    # which beats trusting httpx's charset guess from the response headers —
+    # a wrong guess there silently mangles every non-ASCII character (curly
+    # quotes, accented names) into garbage that then goes straight to the model.
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(_DROP):
         tag.decompose()
@@ -62,7 +66,7 @@ def article_text(url: str, *, max_chars: int = 2600, timeout: float = 8.0) -> st
             url, headers=_UA, timeout=httpx.Timeout(timeout), follow_redirects=True
         )
         if r.status_code == 200 and "html" in r.headers.get("content-type", "").lower():
-            body = _extract(r.text)[:max_chars]
+            body = _extract(r.content)[:max_chars]
     except (httpx.HTTPError, ValueError):
         body = ""
     _cache[url] = body
