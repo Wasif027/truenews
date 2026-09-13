@@ -24,7 +24,7 @@ export default function HowItWorks() {
 
       <div className="mt-10 space-y-9">
         <Section title="Where the news comes from">
-          About once an hour, TrueNews checks the public news feeds of the outlets it tracks in each
+          About every four hours, TrueNews checks the public news feeds of the outlets it tracks in each
           country and pulls in anything new &mdash; the headline, the first paragraph, and a link
           back to the full article. It doesn&rsquo;t keep the whole article; for the full piece you
           click through to the outlet.

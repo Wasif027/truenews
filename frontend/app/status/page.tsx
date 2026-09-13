@@ -27,10 +27,10 @@ export default async function StatusPage() {
   const fresh = status.last_story_update
     ? timeAgo(status.last_story_update)
     : "never";
-  // Ingestion is hourly; only flag it if we're well past a missed run.
+  // Ingestion runs every 4 hours; only flag it if we're well past a missed run.
   const stale =
     status.last_story_update &&
-    Date.now() - new Date(status.last_story_update).getTime() > 150 * 60 * 1000;
+    Date.now() - new Date(status.last_story_update).getTime() > 330 * 60 * 1000;
 
   const rows: [string, string][] = [
     ["Country", name],
@@ -73,8 +73,8 @@ export default async function StatusPage() {
       </dl>
 
       <p className="mt-4 max-w-[60ch] text-xs leading-relaxed" style={{ color: "var(--muted)" }}>
-        Ingestion runs about once an hour on a scheduled job: fetch new articles, cluster
-        them by story, then summarise and compare the coverage.
+        Ingestion runs about every four hours on a scheduled job: fetch new articles,
+        cluster them by story, then summarise and compare the coverage.
       </p>
     </div>
   );

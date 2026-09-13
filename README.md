@@ -23,7 +23,7 @@ See [SPEC.md](SPEC.md) for the full v1 scope and the reasoning behind it.
 
 | Layer | Choice |
 |---|---|
-| Ingestion | Python, hourly via GitHub Actions (`.github/workflows/ingest.yml`) |
+| Ingestion | Python, every 4 hours via GitHub Actions (`.github/workflows/ingest.yml`), sharded across parallel jobs |
 | Embeddings / clustering | `fastembed` (BAAI/bge-small-en-v1.5, ONNX) + cosine-threshold connected components |
 | Categorisation | zero-shot over the same embeddings; up to two categories per story |
 | Summary + coverage comparison | up to 3 OpenAI-compatible LLM providers (`LLM_1_*`..`LLM_3_*`), tried in order and rolled over on any rate limit — chains free tiers (Gemini → Groq) so a busy day never drops the feature. Offline heuristic fallback with no key. |
@@ -35,8 +35,8 @@ See [SPEC.md](SPEC.md) for the full v1 scope and the reasoning behind it.
 ## Run it locally
 
 Needs Python 3.11+, Node 20+, and any Postgres with the `vector` extension
-(a free Neon database is easiest: put its URL in `backend/.env` as
-`DATABASE_URL=postgresql+psycopg://...`).
+(a free Supabase project is easiest: put its connection string in
+`backend/.env` as `DATABASE_URL=postgresql+psycopg://...`).
 
 ### Everyday: one command
 
@@ -54,8 +54,9 @@ npm run ingest       # refresh the news now (fetch -> cluster -> summarise)
 Set `INGEST_INTERVAL_MIN` in `backend/.env` to a positive number (e.g. `20`) and
 the API re-ingests on that interval on its own, so new stories and the
 "new stories" pill appear while you watch. The deployed version keeps this at `0`
-and relies on the GitHub Actions cron (`.github/workflows/ingest.yml`, hourly) so
-ingestion doesn't run twice against the same database.
+and relies on the GitHub Actions cron (`.github/workflows/ingest.yml`, every 4
+hours, triggered externally by cron-job.org) so ingestion doesn't run twice
+against the same database.
 
 Close any old `uvicorn` / `next dev` windows first so nothing double-binds a port.
 (`npm run dev:api` / `npm run dev:web` run just one side.)
@@ -120,10 +121,10 @@ ruff check .
 
 | Piece | Host | Notes |
 |---|---|---|
-| Database | Neon (has pgvector) | **pin compute to 0.25 CU** (set min = max, no autoscale) so 24/7 wake-time stays under the 191.9 compute-hours/month allowance; `DATABASE_URL` goes in the GitHub secret and the API host env |
+| Database | Supabase (has pgvector) | free tier caps egress at 5 GB/month — the ingest pipeline column-selects and prunes aggressively to stay under it; `DATABASE_URL` goes in the GitHub secret and the API host env |
 | API | Render / Fly / Koyeb | builds from `backend/Dockerfile`; it runs `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Set `INGEST_INTERVAL_MIN=0`, a real `SECRET_KEY`, `COOKIE_SECURE=true`, `FRONTEND_ORIGIN` = the Vercel URL |
 | Frontend | Vercel | root directory `frontend`; set `NEXT_PUBLIC_API_URL` to the API URL and `NEXT_PUBLIC_SITE_URL` to the Vercel URL |
-| Ingestion | GitHub Actions cron (`ingest.yml`, hourly) | **public repo required**; add `DATABASE_URL`, `LLM_1_KEY`, `LLM_2_KEY` as repo secrets |
+| Ingestion | GitHub Actions cron (`ingest.yml`, every 4 hours, sharded), triggered by cron-job.org hitting the workflow-dispatch API | **public repo required**; add `DATABASE_URL`, `LLM_1_KEY`, `LLM_2_KEY` as repo secrets |
 
 The API image pre-fetches the embedding model at build time, so the first request
 is fast. Kick off the first ingest from the repo's Actions tab ("Run workflow" →
