@@ -37,10 +37,13 @@ _LEAD_JUNK = re.compile(
     r"district-?wise\s*toll)\b.*$",
     re.IGNORECASE | re.DOTALL,
 )
-# A wire-service dateline prefix ("NEW YORK, Sept 12, 2026 (AFP) - ") reads fine
-# inline in a wire story but looks like raw scraper leakage once it's the first
-# thing on the page — strip it before the lead is used in a summary.
-_WIRE_DATELINE = re.compile(r"^[A-Z][A-Z .]{1,30},\s*[^()]{0,30}\([A-Za-z./]{2,15}\)\s*-\s*")
+# A wire-service dateline ("NEW YORK, Sept 12, 2026 (AFP) - ") reads fine inline
+# in a wire story but looks like raw scraper leakage on the page — and some RSS
+# feeds bury it after a stray lead-in sentence rather than at position 0, so
+# this isn't anchored to the start: whatever precedes the dateline is dropped
+# along with the dateline itself, on the assumption that the real lead starts
+# right after it.
+_WIRE_DATELINE = re.compile(r"[A-Z][A-Z .]{1,30},\s*[^()]{0,30}\([A-Za-z./]{2,15}\)\s*-\s*")
 
 # Verbs/nouns that editorialise — a headline using one is taking an angle.
 _CHARGED = (
@@ -183,7 +186,9 @@ def _clean_lead(text: str) -> str:
     t = re.sub(r"([a-z0-9)\]\"'”’])([.!?])([A-Z\"'“‘(])", r"\1\2 \3", t)
     t = re.sub(r"(\d)([A-Z][a-z])", r"\1 \2", t)  # "2026Ramon" -> "2026 Ramon"
     t = _LEAD_JUNK.sub("", t).strip()
-    t = _WIRE_DATELINE.sub("", t).strip()
+    dateline = _WIRE_DATELINE.search(t)
+    if dateline:
+        t = t[dateline.end() :].strip()  # drop the dateline AND whatever precedes it
     return t
 
 
@@ -355,11 +360,18 @@ def _and_list(names: list[str]) -> str:
 
 
 def _offline(items: list[SourceItem]) -> SummaryResult:
-    # Stitch the openings from the two fullest sources for a bit more detail.
-    leads = sorted(
-        (c for c in (_clean_lead(it.lead) for it in items if it.lead) if c),
-        key=_lead_quality,
+    # Prefer the most recent usable lead as the primary summary source — the
+    # old approach picked whichever lead read cleanest regardless of date, so
+    # a well-written but since-superseded lead (a unit that HAD shut down,
+    # before a later article said it resumed) could outrank the current one.
+    # Only fall back to messier leads if nothing recent is clean.
+    dated = sorted(
+        ((it.published_at, c) for it in items if it.lead and (c := _clean_lead(it.lead))),
+        key=lambda pair: pair[0],
+        reverse=True,
     )
+    clean = [c for _, c in dated if not _lead_quality(c)[0]]
+    leads = clean or [c for _, c in dated]
     if leads:
         summary = _first_sentences(leads[0], 4)
         if len(leads) > 1 and len(summary) < 340:
