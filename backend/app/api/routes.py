@@ -12,6 +12,7 @@ from app.api.serializers import list_item as _list_item
 from app.api.serializers import outlet_out as _outlet_out
 from app.config import get_settings
 from app.db import get_session
+from app.ingest.sources import SOURCES
 from app.models import Article, Cluster, FlaggedSentence, Outlet, utcnow
 from app.schemas import (
     CategoryCount,
@@ -25,8 +26,15 @@ router = APIRouter(prefix="/api")
 
 
 def _country(value: str | None) -> str:
+    """A deployment's COUNTRIES env var and the code's own source configs can
+    drift (e.g. a country dropped from sources.py but not yet from the env
+    var) — validate against both, not just the env var, so a stale entry
+    degrades to the default country instead of 500ing downstream in
+    `sources_for`."""
     s = get_settings()
-    return value if value in s.country_list else s.default_country
+    valid = [c for c in s.country_list if c in SOURCES] or list(SOURCES)
+    default = valid[0] if valid else s.default_country
+    return value if value in valid else default
 
 
 _outlet_cache: dict[str, object] = {"at": 0.0, "by_id": {}}
@@ -170,7 +178,13 @@ def list_countries():
     from app.ingest.sources import COUNTRIES
 
     s = get_settings()
-    return [{"code": c, "name": COUNTRIES.get(c, c.upper())} for c in s.country_list]
+    # Only ones the code actually has a source config for — a deployment's
+    # COUNTRIES env var can lag behind sources.py after a country is dropped.
+    return [
+        {"code": c, "name": COUNTRIES.get(c, c.upper())}
+        for c in s.country_list
+        if c in SOURCES
+    ]
 
 
 @router.get("/outlets")
