@@ -10,8 +10,10 @@ import { getStory } from "@/lib/api";
 import { categoryLabel, timeAgo } from "@/lib/format";
 
 // Story content is cached ~1 min (getStory: revalidate 60); per-user liked/saved
-// are hydrated client-side in StoryActions.
+// are hydrated client-side in StoryActions. Forced dynamic so a missing/invalid
+// id's notFound() reliably reaches the client as a real 404, not a 200.
 export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (

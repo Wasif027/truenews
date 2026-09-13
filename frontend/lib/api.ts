@@ -93,7 +93,19 @@ export const listOutlets = (country?: string) =>
 export const getStatus = (country?: string) => get<Status>("/api/status", { country });
 
 // --- auth ---
-export const authMe = () => get<User>("/api/auth/me");
+// Collapses concurrent callers onto one in-flight request — AuthProvider calls
+// this once on mount, but it can still overlap with a second mount (e.g. fast
+// navigation) and there's no reason for that to be two round trips, two
+// logged 401s for an anonymous visitor, instead of one.
+let _meInFlight: Promise<User> | null = null;
+export function authMe(): Promise<User> {
+  if (!_meInFlight) {
+    _meInFlight = get<User>("/api/auth/me").finally(() => {
+      _meInFlight = null;
+    });
+  }
+  return _meInFlight;
+}
 export const signup = (username: string, password: string) =>
   send<User>("POST", "/api/auth/signup", { username, password });
 export const login = (username: string, password: string) =>

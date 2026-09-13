@@ -246,6 +246,8 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
     }
 
     # 1. decide: reuse an existing cluster, or mint a new one
+    now = utcnow()
+    max_age = timedelta(hours=s.cluster_window_hours)
     plans: list[list] = []  # [articles, cluster_or_None]
     for group in groups:
         arts = [by_id[i] for i in group]
@@ -254,9 +256,21 @@ def _recluster(session: Session, country: str) -> list[Cluster]:
         if existing_ids:
             dominant, dom_count = Counter(existing_ids).most_common(1)[0]
             cand = cand_by_id.get(dominant)
-            # Reuse only if this group is a real chunk of that cluster, not a
-            # fragment split off an over-merged blob by a stricter threshold.
-            if cand and dom_count >= 0.5 * max(cand.article_count, 1):
+            # Reuse only if this group is a real chunk of that cluster (not a
+            # fragment split off an over-merged blob by a stricter threshold),
+            # AND the cluster isn't already older than one clustering window.
+            # Without that cap, an ongoing situation (ministerial visit, a
+            # recurring daily column, a multi-day summit) keeps matching fresh
+            # coverage indefinitely and the "story" never stops growing —
+            # weeks of only loosely related articles end up as one cluster.
+            # Past the cap, new coverage starts a fresh story instead, which
+            # also matches what /how-it-works already tells readers: stories
+            # collect new articles for about three days, then age out.
+            if (
+                cand
+                and dom_count >= 0.5 * max(cand.article_count, 1)
+                and now - cand.created_at <= max_age
+            ):
                 cluster = cand
         plans.append([arts, cluster])
 
