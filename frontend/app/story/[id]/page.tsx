@@ -27,7 +27,9 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
   if (!story) notFound();
 
   const totalOutlets = story.coverage.reported.length + story.coverage.not_reporting.length;
-  const flagged = story.sources.flatMap((s) => s.flagged_sentences);
+  const flagged = story.sources.flatMap((s) =>
+    s.flagged_sentences.map((text) => ({ text, outlet: s.outlet.name })),
+  );
 
   return (
     <article className="reveal mx-auto max-w-[46rem]">
@@ -124,6 +126,32 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
         </section>
       )}
 
+      {flagged.length > 0 && (
+        <section className="mt-9">
+          <SectionLabel>Loaded language</SectionLabel>
+          <ul className="space-y-3 text-sm leading-relaxed" style={{ color: "var(--fg-soft)" }}>
+            {flagged.map((f, i) => (
+              <li key={i}>
+                <mark className="loaded">{f.text}</mark>
+                <span className="ml-2 text-xs" style={{ color: "var(--muted)" }}>
+                  — {f.outlet}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px]" style={{ color: "var(--muted)" }}>
+            Flagged by a transparent lexicon scorer, separate from the write-up above. See{" "}
+            <Link
+              href="/how-it-works"
+              className="underline decoration-1 underline-offset-2 transition-colors hover:text-[var(--fg)]"
+            >
+              How it works
+            </Link>
+            .
+          </p>
+        </section>
+      )}
+
       {story.sources.length >= 2 && (
         <section className="mt-9">
           <SectionLabel>How each outlet headlined it</SectionLabel>
@@ -143,29 +171,6 @@ export default async function StoryPage({ params }: { params: { id: string } }) 
           <SectionLabel>Not reporting this</SectionLabel>
           <p className="text-sm leading-relaxed" style={{ color: "var(--muted)" }}>
             {story.coverage.not_reporting.join(" · ")}
-          </p>
-        </section>
-      )}
-
-      {flagged.length > 0 && (
-        <section className="mt-9">
-          <SectionLabel>Loaded-language flags</SectionLabel>
-          <ul className="space-y-2 text-sm leading-relaxed" style={{ color: "var(--fg-soft)" }}>
-            {flagged.map((f, i) => (
-              <li key={i}>
-                <mark className="loaded">{f}</mark>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[11px]" style={{ color: "var(--muted)" }}>
-            Flagged by a transparent lexicon scorer. See{" "}
-            <Link
-              href="/how-it-works"
-              className="underline decoration-1 underline-offset-2 transition-colors hover:text-[var(--fg)]"
-            >
-              How it works
-            </Link>
-            .
           </p>
         </section>
       )}
